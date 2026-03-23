@@ -60,6 +60,21 @@
   }
 }
 
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(141, 73%, 42%, 0.4); }
+  50% { box-shadow: 0 0 16px 4px hsl(141, 73%, 42%, 0.2); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
