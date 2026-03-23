@@ -6,6 +6,7 @@ import { Song } from "@/lib/api";
 import { RepeatMode } from "@/hooks/useAudioPlayer";
 import { useState } from "react";
 import QueuePanel from "./QueuePanel";
+import FullScreenPlayer from "./FullScreenPlayer";
 
 interface PlayerProps {
   song: Song | null;
@@ -41,6 +42,7 @@ export default function MusicPlayer({
   onToggleShuffle, onToggleRepeat, onPlayFromQueue,
 }: PlayerProps) {
   const [showQueue, setShowQueue] = useState(false);
+  const [showFullScreen, setShowFullScreen] = useState(false);
 
   if (!song) {
     return (
@@ -56,16 +58,46 @@ export default function MusicPlayer({
 
   return (
     <>
+      {/* Full screen player */}
+      {showFullScreen && (
+        <FullScreenPlayer
+          song={song}
+          isPlaying={isPlaying}
+          currentTime={currentTime}
+          duration={duration}
+          volume={volume}
+          shuffle={shuffle}
+          repeat={repeat}
+          queue={queue}
+          queueIndex={queueIndex}
+          onTogglePlay={onTogglePlay}
+          onNext={onNext}
+          onPrev={onPrev}
+          onSeek={onSeek}
+          onVolumeChange={onVolumeChange}
+          onToggleShuffle={onToggleShuffle}
+          onToggleRepeat={onToggleRepeat}
+          onPlayFromQueue={onPlayFromQueue}
+          onClose={() => setShowFullScreen(false)}
+        />
+      )}
+
+      {/* Desktop queue panel */}
       <QueuePanel
-        open={showQueue}
+        open={showQueue && !showFullScreen}
         onClose={() => setShowQueue(false)}
         queue={queue}
         queueIndex={queueIndex}
         onPlayFromQueue={onPlayFromQueue}
       />
+
+      {/* Mini player bar */}
       <footer className="fixed bottom-0 left-0 right-0 h-[72px] bg-player-bg border-t border-border z-50 flex items-center px-3 sm:px-4 gap-2 sm:gap-4">
-        {/* Song info */}
-        <div className="flex items-center gap-3 w-[140px] sm:w-[200px] min-w-0 shrink-0">
+        {/* Song info — tap to open full screen */}
+        <button
+          onClick={() => setShowFullScreen(true)}
+          className="flex items-center gap-3 w-[140px] sm:w-[200px] min-w-0 shrink-0 text-left hover:opacity-80 transition-opacity"
+        >
           <img
             src={song.image || "/placeholder.svg"}
             alt=""
@@ -76,7 +108,7 @@ export default function MusicPlayer({
             <p className="text-sm font-medium text-foreground truncate">{song.name}</p>
             <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
           </div>
-        </div>
+        </button>
 
         {/* Controls */}
         <div className="flex-1 flex flex-col items-center gap-1 max-w-[600px] mx-auto">
@@ -108,7 +140,8 @@ export default function MusicPlayer({
               <RepeatIcon size={16} />
             </button>
           </div>
-          <div className="w-full flex items-center gap-2 text-xs text-muted-foreground">
+          {/* Seek bar - hidden on very small screens, shown on sm+ */}
+          <div className="w-full hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-10 text-right tabular-nums">{fmt(currentTime)}</span>
             <div className="flex-1 h-1 bg-secondary rounded-full group cursor-pointer relative"
               onClick={(e) => {
@@ -126,9 +159,13 @@ export default function MusicPlayer({
             </div>
             <span className="w-10 tabular-nums">{fmt(duration)}</span>
           </div>
+          {/* Mobile progress bar (thin, no timestamps) */}
+          <div className="w-full sm:hidden h-0.5 bg-secondary rounded-full overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+          </div>
         </div>
 
-        {/* Right controls */}
+        {/* Right controls — desktop only */}
         <div className="hidden sm:flex items-center gap-2 w-[160px] shrink-0 justify-end">
           <button
             onClick={() => setShowQueue(!showQueue)}
