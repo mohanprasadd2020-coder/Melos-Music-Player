@@ -1,6 +1,6 @@
-import { Home, Search, Library, Heart, Clock } from "lucide-react";
+import { Home, Search, Disc3, ListMusic, Heart } from "lucide-react";
 
-type View = "home" | "search" | "library" | "favorites" | "recent";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail";
 
 interface MobileNavProps {
   currentView: View;
@@ -10,9 +10,9 @@ interface MobileNavProps {
 const items = [
   { id: "home" as View, label: "Home", icon: Home },
   { id: "search" as View, label: "Search", icon: Search },
-  { id: "library" as View, label: "Library", icon: Library },
+  { id: "albums" as View, label: "Albums", icon: Disc3 },
+  { id: "playlists" as View, label: "Playlists", icon: ListMusic },
   { id: "favorites" as View, label: "Liked", icon: Heart },
-  { id: "recent" as View, label: "Recent", icon: Clock },
 ];
 
 export default function MobileNav({ currentView, onNavigate }: MobileNavProps) {
