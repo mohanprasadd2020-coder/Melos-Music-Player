@@ -130,11 +130,18 @@ export default function Index() {
         currentTime={player.currentTime}
         duration={player.duration}
         volume={player.volume}
+        shuffle={player.shuffle}
+        repeat={player.repeat}
+        queue={player.queue}
+        queueIndex={player.queueIndex}
         onTogglePlay={player.togglePlay}
         onNext={player.handleNext}
         onPrev={player.handlePrev}
         onSeek={player.seek}
         onVolumeChange={player.changeVolume}
+        onToggleShuffle={player.toggleShuffle}
+        onToggleRepeat={player.toggleRepeat}
+        onPlayFromQueue={player.playFromQueue}
       />
     </div>
   );
