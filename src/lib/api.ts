@@ -8,21 +8,21 @@ export interface Song {
   url: string;
 }
 
-const BASE_URL = "https://saavn.dev/api";
+const BASE_URL = "https://jiosaavn-api-privatecvc2.vercel.app";
 
 function parseSong(item: any): Song {
   const images = item.image || [];
   const image = images.length > 0
-    ? (images.find((i: any) => i.quality === "500x500") || images[images.length - 1])?.url || ""
+    ? (images.find((i: any) => i.quality === "500x500") || images[images.length - 1])?.link || ""
     : "";
 
   const downloadUrls = item.downloadUrl || [];
   const audioUrl = downloadUrls.length > 0
-    ? (downloadUrls.find((d: any) => d.quality === "320kbps") || downloadUrls[downloadUrls.length - 1])?.url || ""
+    ? (downloadUrls.find((d: any) => d.quality === "320kbps") || downloadUrls[downloadUrls.length - 1])?.link || ""
     : "";
 
-  const artists = item.artists?.primary?.map((a: any) => a.name).join(", ") 
-    || item.primaryArtists 
+  const artists = item.artists?.primary?.map((a: any) => a.name).join(", ")
+    || item.primaryArtists
     || "Unknown Artist";
 
   return {
@@ -30,7 +30,7 @@ function parseSong(item: any): Song {
     name: item.name || item.title || "Unknown",
     artist: artists,
     album: item.album?.name || item.album || "",
-    duration: item.duration || 0,
+    duration: parseInt(item.duration) || 0,
     image,
     url: audioUrl,
   };
@@ -41,7 +41,7 @@ export async function searchSongs(query: string): Promise<Song[]> {
   try {
     const res = await fetch(`${BASE_URL}/search/songs?query=${encodeURIComponent(query)}&limit=20`);
     const data = await res.json();
-    if (!data.success || !data.data?.results) return [];
+    if (data.status !== "SUCCESS" || !data.data?.results) return [];
     return data.data.results.map(parseSong);
   } catch {
     return [];
@@ -52,7 +52,7 @@ export async function getTrendingSongs(): Promise<Song[]> {
   try {
     const res = await fetch(`${BASE_URL}/search/songs?query=trending hindi&limit=20`);
     const data = await res.json();
-    if (!data.success || !data.data?.results) return [];
+    if (data.status !== "SUCCESS" || !data.data?.results) return [];
     return data.data.results.map(parseSong);
   } catch {
     return [];
