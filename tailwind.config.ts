@@ -60,7 +60,8 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-      },
+        "surface-hover": "hsl(var(--surface-hover))",
+        "player-bg": "hsl(var(--player-bg))",
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
