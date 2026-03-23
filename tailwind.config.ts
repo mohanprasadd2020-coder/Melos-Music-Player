@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        outfit: ["Outfit", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,7 +60,8 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-      },
+        "surface-hover": "hsl(var(--surface-hover))",
+        "player-bg": "hsl(var(--player-bg))",
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
