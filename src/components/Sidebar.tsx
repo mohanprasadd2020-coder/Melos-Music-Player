@@ -1,6 +1,6 @@
-import { Home, Search, Library, Heart, Clock } from "lucide-react";
+import { Home, Search, Library, Heart, Clock, Disc3, ListMusic } from "lucide-react";
 
-type View = "home" | "search" | "library" | "favorites" | "recent";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail";
 
 interface SidebarProps {
   currentView: View;
@@ -13,12 +13,37 @@ const navItems = [
   { id: "library" as View, label: "Your Library", icon: Library },
 ];
 
+const browseItems = [
+  { id: "albums" as View, label: "Albums", icon: Disc3 },
+  { id: "playlists" as View, label: "Playlists", icon: ListMusic },
+];
+
 const playlistItems = [
   { id: "favorites" as View, label: "Liked Songs", icon: Heart },
   { id: "recent" as View, label: "Recently Played", icon: Clock },
 ];
 
 export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
+  const renderNav = (items: typeof navItems) =>
+    items.map((item) => {
+      const Icon = item.icon;
+      const active = currentView === item.id;
+      return (
+        <button
+          key={item.id}
+          onClick={() => onNavigate(item.id)}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+            active
+              ? "bg-sidebar-accent text-foreground"
+              : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+          }`}
+        >
+          <Icon size={20} />
+          {item.label}
+        </button>
+      );
+    });
+
   return (
     <aside className="hidden md:flex flex-col w-60 bg-sidebar shrink-0 h-full">
       <div className="p-6 pb-2">
@@ -30,49 +55,15 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
         </h1>
       </div>
 
-      <nav className="px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = currentView === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                active
-                  ? "bg-sidebar-accent text-foreground"
-                  : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent/50"
-              }`}
-            >
-              <Icon size={20} />
-              {item.label}
-            </button>
-          );
-        })}
-      </nav>
+      <nav className="px-3 py-4 space-y-1">{renderNav(navItems)}</nav>
 
-      <div className="border-t border-sidebar-border mx-3 my-2" />
+      <div className="border-t border-sidebar-border mx-3 my-1" />
+      <p className="px-6 pt-2 pb-1 text-xs uppercase text-muted-foreground font-semibold tracking-wider">Browse</p>
+      <nav className="px-3 py-1 space-y-1">{renderNav(browseItems)}</nav>
 
-      <nav className="px-3 py-2 space-y-1">
-        {playlistItems.map((item) => {
-          const Icon = item.icon;
-          const active = currentView === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                active
-                  ? "bg-sidebar-accent text-foreground"
-                  : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent/50"
-              }`}
-            >
-              <Icon size={20} />
-              {item.label}
-            </button>
-          );
-        })}
-      </nav>
+      <div className="border-t border-sidebar-border mx-3 my-1" />
+      <p className="px-6 pt-2 pb-1 text-xs uppercase text-muted-foreground font-semibold tracking-wider">Collection</p>
+      <nav className="px-3 py-1 space-y-1">{renderNav(playlistItems)}</nav>
     </aside>
   );
 }
