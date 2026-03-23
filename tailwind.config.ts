@@ -81,6 +81,10 @@ export default {
           from: { transform: "translateX(100%)" },
           to: { transform: "translateX(0)" },
         },
+        "scale-in": {
+          from: { transform: "scale(0.95)", opacity: "0" },
+          to: { transform: "scale(1)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
