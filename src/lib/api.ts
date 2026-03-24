@@ -1,3 +1,5 @@
+export type SongSource = "saavn" | "local";
+
 export interface Song {
   id: string;
   name: string;
@@ -6,6 +8,7 @@ export interface Song {
   duration: number;
   image: string;
   url: string;
+  source?: SongSource;
 }
 
 export interface Album {

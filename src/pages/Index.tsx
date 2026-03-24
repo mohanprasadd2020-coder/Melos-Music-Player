@@ -352,8 +352,21 @@ export default function Index() {
       <Sidebar currentView={view} onNavigate={navigate} />
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center gap-4 px-4 md:px-6 py-3 bg-background/80 backdrop-blur-md sticky top-0 z-30">
+        <header className="flex items-center gap-3 px-4 md:px-6 py-3 bg-background/80 backdrop-blur-md sticky top-0 z-30">
           <SearchBar value={query} onChange={handleSearchChange} />
+          <label
+            title="Add local audio files"
+            className="shrink-0 w-10 h-10 rounded-full bg-secondary hover:bg-accent flex items-center justify-center cursor-pointer transition-colors"
+          >
+            <Upload size={18} className="text-muted-foreground" />
+            <input
+              type="file"
+              accept="audio/*"
+              multiple
+              className="hidden"
+              onChange={handleLocalFiles}
+            />
+          </label>
         </header>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4 pb-40">
