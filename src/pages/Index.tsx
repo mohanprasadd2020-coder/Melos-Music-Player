@@ -15,7 +15,8 @@ import {
   getRecentlyPlayed, getFavorites, getPlaylists, searchPlaylists,
   createPlaylist, deletePlaylist,
 } from "@/lib/api";
-import { Loader2, Plus, ListPlus } from "lucide-react";
+import { Loader2, Plus, ListPlus, Upload } from "lucide-react";
+import { processLocalFiles } from "@/lib/localFiles";
 
 type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail";
 
