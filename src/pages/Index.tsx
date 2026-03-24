@@ -34,7 +34,15 @@ export default function Index() {
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [addSongToPlaylist, setAddSongToPlaylist] = useState<Song | null>(null);
+  const [localSongs, setLocalSongs] = useState<Song[]>([]);
   const player = useAudioPlayer();
+
+  const handleLocalFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const songs = processLocalFiles(e.target.files);
+    setLocalSongs(prev => [...songs, ...prev]);
+    e.target.value = "";
+  };
 
   useEffect(() => {
     getTrendingSongs().then(setTrending);
