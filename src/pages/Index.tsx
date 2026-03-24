@@ -285,6 +285,16 @@ export default function Index() {
           />
         );
 
+      case "local":
+        return (
+          <SongGrid
+            title="Local Songs"
+            songs={localSongs}
+            emptyMessage="No local songs added. Use the upload button to add audio files from your device."
+            onPlay={(song, i) => handlePlay(localSongs, song, i)}
+          />
+        );
+
       default:
         return (
           <>
