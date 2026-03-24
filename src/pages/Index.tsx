@@ -298,6 +298,14 @@ export default function Index() {
       default:
         return (
           <>
+            {localSongs.length > 0 && (
+              <SongGrid
+                title="Local Songs"
+                songs={localSongs.slice(0, 6)}
+                onPlay={(song, i) => handlePlay(localSongs, song, i)}
+              />
+            )}
+
             {getRecentlyPlayed().length > 0 && (
               <SongGrid
                 title="Recently Played"

@@ -12,7 +12,7 @@ const items = [
   { id: "search" as View, label: "Search", icon: Search },
   { id: "albums" as View, label: "Albums", icon: Disc3 },
   { id: "playlists" as View, label: "Playlists", icon: ListMusic },
-  { id: "favorites" as View, label: "Liked", icon: Heart },
+  { id: "local" as View, label: "Local", icon: HardDrive },
 ];
 
 export default function MobileNav({ currentView, onNavigate }: MobileNavProps) {

@@ -21,6 +21,7 @@ const browseItems = [
 const playlistItems = [
   { id: "favorites" as View, label: "Liked Songs", icon: Heart },
   { id: "recent" as View, label: "Recently Played", icon: Clock },
+  { id: "local" as View, label: "Local Songs", icon: HardDrive },
 ];
 
 export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
