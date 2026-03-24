@@ -1,6 +1,6 @@
-import { Home, Search, Disc3, ListMusic, Heart } from "lucide-react";
+import { Home, Search, Disc3, ListMusic, HardDrive } from "lucide-react";
 
-type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local";
 
 interface MobileNavProps {
   currentView: View;
