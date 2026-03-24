@@ -1,6 +1,6 @@
-import { Home, Search, Library, Heart, Clock, Disc3, ListMusic } from "lucide-react";
+import { Home, Search, Library, Heart, Clock, Disc3, ListMusic, HardDrive } from "lucide-react";
 
-type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local";
 
 interface SidebarProps {
   currentView: View;
