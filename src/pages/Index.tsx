@@ -15,9 +15,10 @@ import {
   getRecentlyPlayed, getFavorites, getPlaylists, searchPlaylists,
   createPlaylist, deletePlaylist,
 } from "@/lib/api";
-import { Loader2, Plus, ListPlus } from "lucide-react";
+import { Loader2, Plus, ListPlus, Upload } from "lucide-react";
+import { processLocalFiles } from "@/lib/localFiles";
 
-type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local";
 
 export default function Index() {
   const [view, setView] = useState<View>("home");
@@ -33,7 +34,15 @@ export default function Index() {
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [addSongToPlaylist, setAddSongToPlaylist] = useState<Song | null>(null);
+  const [localSongs, setLocalSongs] = useState<Song[]>([]);
   const player = useAudioPlayer();
+
+  const handleLocalFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const songs = processLocalFiles(e.target.files);
+    setLocalSongs(prev => [...songs, ...prev]);
+    e.target.value = "";
+  };
 
   useEffect(() => {
     getTrendingSongs().then(setTrending);
@@ -276,9 +285,27 @@ export default function Index() {
           />
         );
 
+      case "local":
+        return (
+          <SongGrid
+            title="Local Songs"
+            songs={localSongs}
+            emptyMessage="No local songs added. Use the upload button to add audio files from your device."
+            onPlay={(song, i) => handlePlay(localSongs, song, i)}
+          />
+        );
+
       default:
         return (
           <>
+            {localSongs.length > 0 && (
+              <SongGrid
+                title="Local Songs"
+                songs={localSongs.slice(0, 6)}
+                onPlay={(song, i) => handlePlay(localSongs, song, i)}
+              />
+            )}
+
             {getRecentlyPlayed().length > 0 && (
               <SongGrid
                 title="Recently Played"
@@ -343,8 +370,21 @@ export default function Index() {
       <Sidebar currentView={view} onNavigate={navigate} />
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center gap-4 px-4 md:px-6 py-3 bg-background/80 backdrop-blur-md sticky top-0 z-30">
+        <header className="flex items-center gap-3 px-4 md:px-6 py-3 bg-background/80 backdrop-blur-md sticky top-0 z-30">
           <SearchBar value={query} onChange={handleSearchChange} />
+          <label
+            title="Add local audio files"
+            className="shrink-0 w-10 h-10 rounded-full bg-secondary hover:bg-accent flex items-center justify-center cursor-pointer transition-colors"
+          >
+            <Upload size={18} className="text-muted-foreground" />
+            <input
+              type="file"
+              accept="audio/*"
+              multiple
+              className="hidden"
+              onChange={handleLocalFiles}
+            />
+          </label>
         </header>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4 pb-40">
