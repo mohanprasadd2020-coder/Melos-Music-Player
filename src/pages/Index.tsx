@@ -18,7 +18,7 @@ import {
 import { Loader2, Plus, ListPlus, Upload } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
 
-type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local";
 
 export default function Index() {
   const [view, setView] = useState<View>("home");
