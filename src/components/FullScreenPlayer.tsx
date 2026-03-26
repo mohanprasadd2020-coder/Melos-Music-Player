@@ -1,11 +1,11 @@
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Volume1,
-  Shuffle, Repeat, Repeat1, ListMusic, ChevronDown, Heart,
+  Shuffle, Repeat, Repeat1, ListMusic, ChevronDown, Heart, Music2, Loader2,
 } from "lucide-react";
-import { Song } from "@/lib/api";
+import { Song, isFavorite, toggleFavorite } from "@/lib/api";
 import { RepeatMode } from "@/hooks/useAudioPlayer";
-import { useState } from "react";
-import QueuePanel from "./QueuePanel";
+import { useState, useEffect } from "react";
+import { fetchLyrics } from "@/lib/lyrics";
 
 interface FullScreenPlayerProps {
   song: Song;
@@ -35,16 +35,38 @@ function fmt(s: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
+type Tab = "player" | "lyrics" | "queue";
+
 export default function FullScreenPlayer({
   song, isPlaying, currentTime, duration, volume,
   shuffle, repeat, queue, queueIndex,
   onTogglePlay, onNext, onPrev, onSeek, onVolumeChange,
   onToggleShuffle, onToggleRepeat, onPlayFromQueue, onClose,
 }: FullScreenPlayerProps) {
-  const [showQueue, setShowQueue] = useState(false);
+  const [tab, setTab] = useState<Tab>("player");
+  const [lyrics, setLyrics] = useState<string | null>(null);
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [fav, setFav] = useState(isFavorite(song.id));
+
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
   const RepeatIcon = repeat === "one" ? Repeat1 : Repeat;
+
+  // Fetch lyrics when song changes or lyrics tab opened
+  useEffect(() => {
+    setLyrics(null);
+    if (tab === "lyrics") {
+      setLyricsLoading(true);
+      fetchLyrics(song.artist, song.name).then((l) => {
+        setLyrics(l);
+        setLyricsLoading(false);
+      });
+    }
+  }, [song.id, tab]);
+
+  useEffect(() => {
+    setFav(isFavorite(song.id));
+  }, [song.id]);
 
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-slide-up">
@@ -69,31 +91,69 @@ export default function FullScreenPlayer({
           >
             <ChevronDown size={28} />
           </button>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-            Now Playing
-          </p>
+
+          {/* Tab switcher */}
+          <div className="flex items-center gap-1 bg-secondary/60 rounded-full p-1">
+            {(["player", "lyrics", "queue"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors capitalize ${
+                  tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
           <button
-            onClick={() => setShowQueue(!showQueue)}
-            className={`w-10 h-10 flex items-center justify-center transition-colors ${showQueue ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={() => { setFav(toggleFavorite(song)); }}
+            className={`w-10 h-10 flex items-center justify-center transition-colors ${fav ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <ListMusic size={22} />
+            <Heart size={22} fill={fav ? "currentColor" : "none"} />
           </button>
         </div>
 
-        {showQueue ? (
-          /* Inline queue for full-screen */
+        {tab === "queue" ? (
           <div className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-8 pb-4">
             <FullScreenQueue
               queue={queue}
               queueIndex={queueIndex}
-              onPlayFromQueue={(i) => { onPlayFromQueue(i); setShowQueue(false); }}
+              onPlayFromQueue={(i) => { onPlayFromQueue(i); setTab("player"); }}
             />
+          </div>
+        ) : tab === "lyrics" ? (
+          <div className="flex-1 overflow-y-auto scrollbar-thin px-6 sm:px-12 pb-4">
+            <div className="max-w-lg mx-auto">
+              <div className="flex items-center gap-3 mb-6">
+                <img src={song.image || "/placeholder.svg"} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{song.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                </div>
+              </div>
+              {lyricsLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  <p className="text-sm text-muted-foreground">Searching lyrics...</p>
+                </div>
+              ) : lyrics ? (
+                <pre className="text-sm sm:text-base text-foreground/90 whitespace-pre-wrap font-outfit leading-relaxed">
+                  {lyrics}
+                </pre>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Music2 className="w-10 h-10 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Lyrics not available for this song</p>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           /* Album art + song info */
           <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 gap-6 sm:gap-8 overflow-hidden">
-            {/* Album art */}
-            <div className="w-full max-w-[320px] sm:max-w-[380px] aspect-square">
+            <div className="w-full max-w-[280px] sm:max-w-[340px] aspect-square">
               <img
                 src={song.image || "/placeholder.svg"}
                 alt={song.name}
@@ -101,17 +161,16 @@ export default function FullScreenPlayer({
                 style={{ animationDuration: "20s" }}
               />
             </div>
-
-            {/* Song info */}
             <div className="w-full max-w-[400px] text-center">
               <h2 className="text-xl sm:text-2xl font-bold text-foreground truncate">{song.name}</h2>
               <p className="text-sm sm:text-base text-muted-foreground mt-1 truncate">{song.artist}</p>
+              {song.album && <p className="text-xs text-muted-foreground/60 mt-0.5 truncate">{song.album}</p>}
             </div>
           </div>
         )}
 
-        {/* Controls area */}
-        <div className="px-6 sm:px-12 pb-8 sm:pb-10 pt-2 space-y-4 max-w-[500px] mx-auto w-full">
+        {/* Controls area - always visible */}
+        <div className="px-6 sm:px-12 pb-6 sm:pb-8 pt-2 space-y-3 max-w-[500px] mx-auto w-full">
           {/* Seek bar */}
           <div className="space-y-1">
             <div
@@ -148,9 +207,9 @@ export default function FullScreenPlayer({
             </button>
             <button
               onClick={onTogglePlay}
-              className="w-16 h-16 rounded-full bg-foreground text-background flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-foreground text-background flex items-center justify-center hover:scale-105 transition-transform shadow-lg"
             >
-              {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
+              {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
             </button>
             <button onClick={onNext} className="text-foreground hover:scale-110 transition-transform">
               <SkipForward size={28} fill="currentColor" />
