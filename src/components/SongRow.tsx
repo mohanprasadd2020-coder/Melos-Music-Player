@@ -1,12 +1,15 @@
 import { Play, Heart } from "lucide-react";
 import { Song, isFavorite, toggleFavorite } from "@/lib/api";
 import { useState } from "react";
+import SongContextMenu from "./SongContextMenu";
 
 interface SongRowProps {
   song: Song;
   index: number;
   isActive: boolean;
   onPlay: () => void;
+  onAddToPlaylist?: (song: Song) => void;
+  onAddToQueue?: (song: Song) => void;
 }
 
 function formatTime(s: number) {
@@ -15,7 +18,7 @@ function formatTime(s: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-export default function SongRow({ song, index, isActive, onPlay }: SongRowProps) {
+export default function SongRow({ song, index, isActive, onPlay, onAddToPlaylist, onAddToQueue }: SongRowProps) {
   const [fav, setFav] = useState(isFavorite(song.id));
 
   return (
@@ -38,16 +41,25 @@ export default function SongRow({ song, index, isActive, onPlay }: SongRowProps)
         </p>
         <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
       </div>
-      <span className="text-xs text-muted-foreground hidden sm:block">{song.album}</span>
+      <span className="text-xs text-muted-foreground hidden sm:block truncate max-w-[120px]">{song.album}</span>
       <button
         onClick={(e) => { e.stopPropagation(); setFav(toggleFavorite(song)); }}
-        className={`shrink-0 mx-2 transition-colors ${fav ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100"}`}
+        className={`shrink-0 mx-1 transition-colors ${fav ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100"}`}
       >
         <Heart size={14} fill={fav ? "currentColor" : "none"} />
       </button>
-      <span className="text-xs text-muted-foreground w-10 text-right">
+      <span className="text-xs text-muted-foreground w-10 text-right hidden sm:block">
         {song.duration ? formatTime(song.duration) : "--:--"}
       </span>
+      {onAddToPlaylist && (
+        <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+          <SongContextMenu
+            song={song}
+            onAddToPlaylist={onAddToPlaylist}
+            onAddToQueue={onAddToQueue}
+          />
+        </div>
+      )}
     </div>
   );
 }

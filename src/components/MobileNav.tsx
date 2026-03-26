@@ -17,7 +17,7 @@ const items = [
 
 export default function MobileNav({ currentView, onNavigate }: MobileNavProps) {
   return (
-    <nav className="md:hidden fixed bottom-[72px] left-0 right-0 z-40 bg-card border-t border-border flex justify-around py-2">
+    <nav className="md:hidden fixed bottom-[72px] left-0 right-0 z-40 bg-card border-t border-border flex justify-around py-2 px-1">
       {items.map((item) => {
         const Icon = item.icon;
         const active = currentView === item.id;

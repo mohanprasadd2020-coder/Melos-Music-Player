@@ -8,9 +8,11 @@ interface SongGridProps {
   loading?: boolean;
   emptyMessage?: string;
   onPlay: (song: Song, index: number) => void;
+  onAddToPlaylist?: (song: Song) => void;
+  onAddToQueue?: (song: Song) => void;
 }
 
-export default function SongGrid({ title, songs, loading, emptyMessage, onPlay }: SongGridProps) {
+export default function SongGrid({ title, songs, loading, emptyMessage, onPlay, onAddToPlaylist, onAddToQueue }: SongGridProps) {
   return (
     <section className="mb-8">
       <h2 className="text-xl font-bold text-foreground mb-4">{title}</h2>
@@ -24,7 +26,12 @@ export default function SongGrid({ title, songs, loading, emptyMessage, onPlay }
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
           {songs.map((song, i) => (
             <div key={song.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
-              <SongCard song={song} onPlay={() => onPlay(song, i)} />
+              <SongCard
+                song={song}
+                onPlay={() => onPlay(song, i)}
+                onAddToPlaylist={onAddToPlaylist}
+                onAddToQueue={onAddToQueue}
+              />
             </div>
           ))}
         </div>

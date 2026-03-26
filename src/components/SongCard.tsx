@@ -1,13 +1,16 @@
 import { Play, Heart } from "lucide-react";
 import { Song, isFavorite, toggleFavorite } from "@/lib/api";
 import { useState } from "react";
+import SongContextMenu from "./SongContextMenu";
 
 interface SongCardProps {
   song: Song;
   onPlay: () => void;
+  onAddToPlaylist?: (song: Song) => void;
+  onAddToQueue?: (song: Song) => void;
 }
 
-export default function SongCard({ song, onPlay }: SongCardProps) {
+export default function SongCard({ song, onPlay, onAddToPlaylist, onAddToQueue }: SongCardProps) {
   const [fav, setFav] = useState(isFavorite(song.id));
 
   const handleFav = (e: React.MouseEvent) => {
@@ -38,12 +41,23 @@ export default function SongCard({ song, onPlay }: SongCardProps) {
       <h3 className="text-sm font-semibold text-foreground truncate">{song.name}</h3>
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground truncate mt-0.5 flex-1">{song.artist}</p>
-        <button
-          onClick={handleFav}
-          className={`shrink-0 ml-1 transition-colors ${fav ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          <Heart size={14} fill={fav ? "currentColor" : "none"} />
-        </button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={handleFav}
+            className={`ml-1 transition-colors ${fav ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Heart size={14} fill={fav ? "currentColor" : "none"} />
+          </button>
+          {onAddToPlaylist && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <SongContextMenu
+                song={song}
+                onAddToPlaylist={onAddToPlaylist}
+                onAddToQueue={onAddToQueue}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

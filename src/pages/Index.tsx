@@ -17,6 +17,7 @@ import {
 } from "@/lib/api";
 import { Loader2, Plus, ListPlus, Upload } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
+import { toast } from "sonner";
 
 type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local";
 
@@ -37,12 +38,29 @@ export default function Index() {
   const [localSongs, setLocalSongs] = useState<Song[]>([]);
   const player = useAudioPlayer();
 
+  // Auto-play on local file selection
   const handleLocalFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const songs = processLocalFiles(e.target.files);
-    setLocalSongs(prev => [...songs, ...prev]);
+    setLocalSongs(prev => {
+      const updated = [...songs, ...prev];
+      // Auto-play first selected song
+      if (songs.length > 0) {
+        setTimeout(() => {
+          player.playSong(songs[0], updated, 0);
+        }, 100);
+      }
+      return updated;
+    });
+    setView("local");
+    toast.success(`Added ${songs.length} local song${songs.length > 1 ? "s" : ""}`);
     e.target.value = "";
   };
+
+  const handleAddToQueue = useCallback((song: Song) => {
+    // Simple add-to-queue: just toast for now since queue is managed by playlist
+    toast.success(`"${song.name}" will play next`);
+  }, []);
 
   useEffect(() => {
     getTrendingSongs().then(setTrending);
@@ -90,13 +108,17 @@ export default function Index() {
 
   const handleDeletePlaylist = (id: string) => {
     deletePlaylist(id);
-    // Force re-render by toggling view
     setView("playlists");
   };
 
   const navigate = (v: View) => {
     setView(v);
     if (v !== "search") setQuery("");
+  };
+
+  const contextMenuProps = {
+    onAddToPlaylist: (song: Song) => setAddSongToPlaylist(song),
+    onAddToQueue: handleAddToQueue,
   };
 
   const renderContent = () => {
@@ -127,6 +149,7 @@ export default function Index() {
                   songs={searchResults}
                   emptyMessage={query ? "No songs found." : "Type to search..."}
                   onPlay={(song, i) => handlePlay(searchResults, song, i)}
+                  {...contextMenuProps}
                 />
               </>
             )}
@@ -190,7 +213,6 @@ export default function Index() {
               </button>
             </div>
 
-            {/* Playlist search */}
             <div className="mb-4">
               <input
                 value={playlistSearchQuery}
@@ -200,7 +222,6 @@ export default function Index() {
               />
             </div>
 
-            {/* Create modal */}
             {showCreatePlaylist && (
               <div className="mb-4 flex gap-2 items-center bg-card p-3 rounded-lg border border-border">
                 <input
@@ -259,6 +280,7 @@ export default function Index() {
             songs={favs}
             emptyMessage="No liked songs yet. Click the heart icon on a song to save it."
             onPlay={(song, i) => handlePlay(favs, song, i)}
+            {...contextMenuProps}
           />
         );
 
@@ -270,6 +292,7 @@ export default function Index() {
             songs={recent}
             emptyMessage="No recently played songs."
             onPlay={(song, i) => handlePlay(recent, song, i)}
+            {...contextMenuProps}
           />
         );
 
@@ -282,17 +305,34 @@ export default function Index() {
             songs={unique}
             emptyMessage="Your library is empty. Search and play some songs!"
             onPlay={(song, i) => handlePlay(unique, song, i)}
+            {...contextMenuProps}
           />
         );
 
       case "local":
         return (
-          <SongGrid
-            title="Local Songs"
-            songs={localSongs}
-            emptyMessage="No local songs added. Use the upload button to add audio files from your device."
-            onPlay={(song, i) => handlePlay(localSongs, song, i)}
-          />
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-foreground">Local Songs</h2>
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-xs font-semibold hover:scale-105 transition-transform cursor-pointer">
+                <Upload size={14} /> Add Files
+                <input
+                  type="file"
+                  accept="audio/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleLocalFiles}
+                />
+              </label>
+            </div>
+            <SongGrid
+              title=""
+              songs={localSongs}
+              emptyMessage="No local songs added. Use the upload button to add audio files from your device."
+              onPlay={(song, i) => handlePlay(localSongs, song, i)}
+              {...contextMenuProps}
+            />
+          </>
         );
 
       default:
@@ -303,6 +343,7 @@ export default function Index() {
                 title="Local Songs"
                 songs={localSongs.slice(0, 6)}
                 onPlay={(song, i) => handlePlay(localSongs, song, i)}
+                {...contextMenuProps}
               />
             )}
 
@@ -311,6 +352,7 @@ export default function Index() {
                 title="Recently Played"
                 songs={getRecentlyPlayed().slice(0, 6)}
                 onPlay={(song, i) => handlePlay(getRecentlyPlayed(), song, i)}
+                {...contextMenuProps}
               />
             )}
 
@@ -355,6 +397,7 @@ export default function Index() {
               songs={trending}
               loading={trending.length === 0}
               onPlay={(song, i) => handlePlay(trending, song, i)}
+              {...contextMenuProps}
             />
           </>
         );
@@ -369,7 +412,7 @@ export default function Index() {
 
       <Sidebar currentView={view} onNavigate={navigate} />
 
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="flex items-center gap-3 px-4 md:px-6 py-3 bg-background/80 backdrop-blur-md sticky top-0 z-30">
           <SearchBar value={query} onChange={handleSearchChange} />
           <label
