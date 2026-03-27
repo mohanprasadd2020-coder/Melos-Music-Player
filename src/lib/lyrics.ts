@@ -1,28 +1,50 @@
-const LYRICS_API = "https://lyricsapi.vercel.app/api";
-const LYRICS_FALLBACK = "https://api.lyrics.ovh/v1";
+const LYRICS_APIS = [
+  (artist: string, title: string) =>
+    `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`,
+  (artist: string, title: string) =>
+    `https://lyricsapi.vercel.app/api?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`,
+  (artist: string, title: string) =>
+    `https://lyrist.vercel.app/api/${encodeURIComponent(title)}/${encodeURIComponent(artist)}`,
+];
 
 export async function fetchLyrics(artist: string, title: string): Promise<string | null> {
-  // Clean up names
   const cleanArtist = artist.split(",")[0].trim().replace(/[^\w\s]/g, "");
-  const cleanTitle = title.replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").trim();
+  const cleanTitle = title
+    .replace(/\(.*?\)/g, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/-.*$/, "")
+    .trim();
 
-  // Try primary API
-  try {
-    const res = await fetch(`${LYRICS_FALLBACK}/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanTitle)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.lyrics) return data.lyrics;
-    }
-  } catch {}
+  for (const buildUrl of LYRICS_APIS) {
+    try {
+      const url = buildUrl(cleanArtist, cleanTitle);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json();
+        const lyrics = data.lyrics || data.lyric;
+        if (lyrics && lyrics.trim().length > 20) return lyrics;
+      }
+    } catch {}
+  }
 
-  // Try secondary API
-  try {
-    const res = await fetch(`${LYRICS_API}?artist=${encodeURIComponent(cleanArtist)}&title=${encodeURIComponent(cleanTitle)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.lyrics) return data.lyrics;
-    }
-  } catch {}
+  // Try with just the title (common for Indian songs)
+  for (const buildUrl of LYRICS_APIS) {
+    try {
+      const url = buildUrl("", cleanTitle);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json();
+        const lyrics = data.lyrics || data.lyric;
+        if (lyrics && lyrics.trim().length > 20) return lyrics;
+      }
+    } catch {}
+  }
 
   return null;
 }
