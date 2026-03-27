@@ -51,7 +51,7 @@ export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, o
   };
 
   return (
-    <div className="relative">
+    <div className="relative" style={{ zIndex: open ? 9999 : "auto" }}>
       <button
         ref={btnRef}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
@@ -64,8 +64,13 @@ export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, o
         <div
           ref={menuRef}
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-0 top-full mt-1 w-56 bg-popover border border-border rounded-lg shadow-2xl z-50 py-1.5 animate-scale-in overflow-hidden"
-          style={{ maxHeight: "80vh" }}
+          className="fixed w-56 bg-popover border border-border rounded-lg shadow-2xl py-1.5 overflow-hidden"
+          style={{ 
+            zIndex: 9999, 
+            maxHeight: "80vh",
+            top: btnRef.current ? btnRef.current.getBoundingClientRect().bottom + 4 : 0,
+            left: btnRef.current ? Math.min(btnRef.current.getBoundingClientRect().right - 224, window.innerWidth - 230) : 0,
+          }}
         >
           <MenuItem
             icon={<ListPlus size={16} />}

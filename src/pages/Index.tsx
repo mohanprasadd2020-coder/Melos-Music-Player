@@ -9,13 +9,15 @@ import AlbumDetail from "@/components/AlbumDetail";
 import PlaylistCard from "@/components/PlaylistCard";
 import PlaylistDetail from "@/components/PlaylistDetail";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
+import AuthModal from "@/components/AuthModal";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Song, Album, searchSongs, searchAlbums, getTrendingSongs, getTrendingAlbums,
   getRecentlyPlayed, getFavorites, getPlaylists, searchPlaylists,
   createPlaylist, deletePlaylist,
 } from "@/lib/api";
-import { Loader2, Plus, ListPlus, Upload } from "lucide-react";
+import { Loader2, Plus, ListPlus, Upload, User, LogOut } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
 import { toast } from "sonner";
 
@@ -36,7 +38,9 @@ export default function Index() {
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [addSongToPlaylist, setAddSongToPlaylist] = useState<Song | null>(null);
   const [localSongs, setLocalSongs] = useState<Song[]>([]);
+  const [showAuth, setShowAuth] = useState(false);
   const player = useAudioPlayer();
+  const auth = useAuth();
 
   // Auto-play on local file selection
   const handleLocalFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,6 +413,13 @@ export default function Index() {
       {addSongToPlaylist && (
         <AddToPlaylistModal song={addSongToPlaylist} onClose={() => setAddSongToPlaylist(null)} />
       )}
+      {showAuth && (
+        <AuthModal
+          onSignIn={auth.signIn}
+          onSignUp={auth.signUp}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
 
       <Sidebar currentView={view} onNavigate={navigate} />
 
@@ -428,6 +439,28 @@ export default function Index() {
               onChange={handleLocalFiles}
             />
           </label>
+          {auth.user ? (
+            <div className="flex items-center gap-1 shrink-0">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                {auth.user.email?.[0]?.toUpperCase() || "U"}
+              </div>
+              <button
+                onClick={() => { auth.signOut(); toast.success("Signed out"); }}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                title="Sign out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="shrink-0 w-10 h-10 rounded-full bg-secondary hover:bg-accent flex items-center justify-center transition-colors"
+              title="Sign in"
+            >
+              <User size={18} className="text-muted-foreground" />
+            </button>
+          )}
         </header>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4 pb-40">
