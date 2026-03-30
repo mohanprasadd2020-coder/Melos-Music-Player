@@ -161,3 +161,39 @@ export async function ytFallbackSearch(songName: string, artist: string): Promis
 export function isSongPlayable(song: Song): boolean {
   return !!(song.url && song.url.trim().length > 0 && song.url !== "null" && song.url !== "undefined");
 }
+
+/**
+ * Search YouTube and return Song[] (audio-only, no video).
+ * Audio URL is resolved lazily on play to avoid rate limits.
+ */
+export async function ytSearchSongs(query: string): Promise<Song[]> {
+  if (!query.trim()) return [];
+  const results = await ytSearch(query, 20);
+  return results.map((r) => ({
+    id: `yt_${r.videoId}`,
+    name: r.title,
+    artist: r.uploaderName,
+    album: "YouTube",
+    duration: r.duration,
+    image: r.thumbnail,
+    url: "", // resolved on play via fallback
+    source: "saavn" as const,
+  }));
+}
+
+/**
+ * Get trending/popular music from YouTube.
+ */
+export async function ytTrendingSongs(): Promise<Song[]> {
+  const results = await ytSearch("trending music 2024 hits", 20);
+  return results.map((r) => ({
+    id: `yt_${r.videoId}`,
+    name: r.title,
+    artist: r.uploaderName,
+    album: "YouTube",
+    duration: r.duration,
+    image: r.thumbnail,
+    url: "",
+    source: "saavn" as const,
+  }));
+}
