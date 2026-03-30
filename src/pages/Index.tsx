@@ -343,6 +343,65 @@ export default function Index() {
           </>
         );
 
+      case "youtube": {
+        const handleYtSearch = async () => {
+          if (!ytQuery.trim()) return;
+          setYtLoading(true);
+          const songs = await ytSearchSongs(ytQuery);
+          setYtSongs(songs);
+          setYtLoading(false);
+        };
+
+        if (ytSongs.length === 0 && !ytLoading && !ytQuery) {
+          setYtLoading(true);
+          ytTrendingSongs().then((songs) => {
+            setYtSongs(songs);
+            setYtLoading(false);
+          });
+        }
+
+        return (
+          <>
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-foreground mb-4">YouTube Music</h2>
+              <div className="flex gap-2 max-w-md">
+                <div className="flex-1 relative">
+                  <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={ytQuery}
+                    onChange={(e) => setYtQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleYtSearch()}
+                    placeholder="Search YouTube Music..."
+                    className="w-full h-10 pl-9 pr-3 rounded-lg bg-secondary text-foreground text-sm placeholder:text-muted-foreground outline-none border border-transparent focus:border-primary/50 transition-colors"
+                  />
+                </div>
+                <button
+                  onClick={handleYtSearch}
+                  disabled={ytLoading || !ytQuery.trim()}
+                  className="h-10 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium disabled:opacity-50 hover:opacity-90 transition-opacity"
+                >
+                  Search
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">Audio-only playback • No video</p>
+            </div>
+            {ytLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              </div>
+            ) : (
+              <SongGrid
+                title={ytQuery ? `Results for "${ytQuery}"` : "Trending on YouTube"}
+                songs={ytSongs}
+                emptyMessage="Search for songs on YouTube"
+                onPlay={(song, i) => handlePlay(ytSongs, song, i)}
+                {...contextMenuProps}
+              />
+            )}
+          </>
+        );
+      }
+
       default:
         return (
           <>
