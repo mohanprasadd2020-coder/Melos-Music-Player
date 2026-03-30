@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Song, addToRecentlyPlayed } from "@/lib/api";
+import { isSongPlayable, ytFallbackSearch } from "@/lib/youtube";
+import { toast } from "sonner";
 
 export type RepeatMode = "off" | "all" | "one";
 
