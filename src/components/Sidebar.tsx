@@ -34,9 +34,9 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
         <button
           key={item.id}
           onClick={() => onNavigate(item.id)}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
             active
-              ? "bg-sidebar-accent text-foreground"
+              ? "bg-sidebar-accent text-foreground shadow-sm-subtle"
               : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent/50"
           }`}
         >

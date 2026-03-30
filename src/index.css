@@ -47,6 +47,25 @@
     @apply bg-background text-foreground font-outfit;
     overflow: hidden;
   }
+  
+  /* Professional typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+  
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-background ring-offset-2;
+  }
+  
+  /* Smooth transitions */
+  * {
+    @apply transition-colors duration-200;
+  }
+  
+  button {
+    @apply transition-all duration-200;
+  }
 }
 
 @keyframes fade-up {
@@ -74,18 +93,24 @@
 }
 
 .scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: #404040 transparent;
+  /* Webkit browsers scrollbar styling */
 }
 .scrollbar-thin::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #404040;
-  border-radius: 4px;
+  background-color: rgb(64, 64, 64);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s ease;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(100, 100, 100);
 }
 
 .animate-fade-up {
@@ -98,4 +123,44 @@
 
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
+}
+
+/* Professional shadow utilities */
+.shadow-sm-subtle {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.shadow-md-elevated {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+}
+
+.shadow-lg-card {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.25);
+}
+
+.shadow-xl-deep {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.45), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+/* Glass morphism effect */
+.glass-effect {
+  background: rgba(12, 12, 12, 0.4);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Hover elevation */
+.hover-elevate {
+  @apply transition-all duration-300;
+}
+
+.hover-elevate:hover {
+  @apply shadow-lg-card;
+  transform: translateY(-2px);
+}
+
+/* Smooth focus state */
+.focus-ring {
+  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
 }

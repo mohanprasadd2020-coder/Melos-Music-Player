@@ -46,7 +46,7 @@ export default function MusicPlayer({
 
   if (!song) {
     return (
-      <footer className="fixed bottom-0 left-0 right-0 h-[72px] bg-player-bg border-t border-border z-50 flex items-center justify-center">
+      <footer className="fixed bottom-0 left-0 right-0 h-[72px] bg-player-bg border-t border-border z-50 flex items-center justify-center shadow-xl-deep">
         <p className="text-muted-foreground text-sm">Select a song to start playing</p>
       </footer>
     );
@@ -92,16 +92,16 @@ export default function MusicPlayer({
       />
 
       {/* Mini player bar */}
-      <footer className="fixed bottom-0 left-0 right-0 h-[72px] bg-player-bg border-t border-border z-50 flex items-center px-3 sm:px-4 gap-2 sm:gap-4">
+      <footer className="fixed bottom-0 left-0 right-0 h-[72px] bg-player-bg border-t border-border z-50 flex items-center px-3 sm:px-4 gap-2 sm:gap-4 shadow-xl-deep">
         {/* Song info — tap to open full screen */}
         <button
           onClick={() => setShowFullScreen(true)}
-          className="flex items-center gap-3 w-[140px] sm:w-[200px] min-w-0 shrink-0 text-left hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 w-[140px] sm:w-[200px] min-w-0 shrink-0 text-left hover:opacity-80 transition-opacity duration-200 rounded-lg p-1 hover:bg-secondary/50"
         >
           <img
             src={song.image || "/placeholder.svg"}
             alt=""
-            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-md object-cover shadow-md ${isPlaying ? "animate-spin-slow" : ""}`}
+            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-md object-cover shadow-md-elevated ${isPlaying ? "animate-spin-slow" : ""}`}
             style={{ animationDuration: "8s" }}
           />
           <div className="min-w-0">
@@ -115,26 +115,26 @@ export default function MusicPlayer({
           <div className="flex items-center gap-3 sm:gap-4">
             <button
               onClick={onToggleShuffle}
-              className={`hidden sm:block transition-colors ${shuffle ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              className={`hidden sm:block transition-colors duration-200 rounded-md p-1 hover:bg-secondary ${shuffle ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
               title="Shuffle"
             >
               <Shuffle size={16} />
             </button>
-            <button onClick={onPrev} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={onPrev} className="text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-md p-1 hover:bg-secondary" title="Previous track">
               <SkipBack size={18} fill="currentColor" />
             </button>
             <button
               onClick={onTogglePlay}
-              className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center hover:scale-105 transition-transform"
+              className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center hover:scale-110 transition-transform duration-200 shadow-md-elevated"
             >
               {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
             </button>
-            <button onClick={onNext} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={onNext} className="text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-md p-1 hover:bg-secondary" title="Next track">
               <SkipForward size={18} fill="currentColor" />
             </button>
             <button
               onClick={onToggleRepeat}
-              className={`hidden sm:block transition-colors ${repeat !== "off" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              className={`hidden sm:block transition-colors duration-200 rounded-md p-1 hover:bg-secondary ${repeat !== "off" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
               title={`Repeat: ${repeat}`}
             >
               <RepeatIcon size={16} />
@@ -143,7 +143,7 @@ export default function MusicPlayer({
           {/* Seek bar - hidden on very small screens, shown on sm+ */}
           <div className="w-full hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-10 text-right tabular-nums">{fmt(currentTime)}</span>
-            <div className="flex-1 h-1 bg-secondary rounded-full group cursor-pointer relative"
+            <div className="flex-1 h-1 bg-secondary/70 rounded-full group cursor-pointer relative transition-all duration-200 hover:h-1.5"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const pct = (e.clientX - rect.left) / rect.width;
@@ -151,17 +151,17 @@ export default function MusicPlayer({
               }}
             >
               <div
-                className="h-full bg-foreground rounded-full relative group-hover:bg-primary transition-colors"
+                className="h-full bg-foreground rounded-full relative group-hover:bg-primary transition-colors duration-200"
                 style={{ width: `${progress}%` }}
               >
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-foreground rounded-full opacity-0 group-hover:opacity-100 shadow-md-elevated transition-opacity duration-200" />
               </div>
             </div>
             <span className="w-10 tabular-nums">{fmt(duration)}</span>
           </div>
           {/* Mobile progress bar (thin, no timestamps) */}
-          <div className="w-full sm:hidden h-0.5 bg-secondary rounded-full overflow-hidden">
-            <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+          <div className="w-full sm:hidden h-0.5 bg-secondary/70 rounded-full overflow-hidden">
+            <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
@@ -169,22 +169,22 @@ export default function MusicPlayer({
         <div className="hidden sm:flex items-center gap-2 w-[160px] shrink-0 justify-end">
           <button
             onClick={() => setShowQueue(!showQueue)}
-            className={`transition-colors ${showQueue ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            className={`transition-colors duration-200 rounded-md p-1 hover:bg-secondary ${showQueue ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
             title="Queue"
           >
             <ListMusic size={18} />
           </button>
-          <button onClick={() => onVolumeChange(volume === 0 ? 0.7 : 0)} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => onVolumeChange(volume === 0 ? 0.7 : 0)} className="text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-md p-1 hover:bg-secondary" title="Mute/unmute">
             <VolumeIcon size={18} />
           </button>
           <div
-            className="w-20 h-1 bg-secondary rounded-full cursor-pointer group"
+            className="w-20 h-1 bg-secondary rounded-full cursor-pointer group hover:h-1.5 transition-all duration-200"
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               onVolumeChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
             }}
           >
-            <div className="h-full bg-foreground rounded-full group-hover:bg-primary transition-colors" style={{ width: `${volume * 100}%` }} />
+            <div className="h-full bg-foreground rounded-full group-hover:bg-primary transition-colors duration-200" style={{ width: `${volume * 100}%` }} />
           </div>
         </div>
       </footer>

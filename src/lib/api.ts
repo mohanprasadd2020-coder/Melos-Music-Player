@@ -1,4 +1,4 @@
-export type SongSource = "saavn" | "local";
+export type SongSource = "saavn" | "local" | "youtube";
 
 export interface Song {
   id: string;
@@ -85,7 +85,7 @@ function parseAlbum(item: any): Album {
 export async function searchSongs(query: string): Promise<Song[]> {
   if (!query.trim()) return [];
   try {
-    const res = await fetch(`${BASE_URL}/search/songs?query=${encodeURIComponent(query)}&limit=20`);
+    const res = await fetch(`${BASE_URL}/search/songs?query=${encodeURIComponent(query)}&limit=50`);
     const data = await res.json();
     if (data.status !== "SUCCESS" || !data.data?.results) return [];
     return data.data.results.map(parseSong);
@@ -110,7 +110,7 @@ export async function getTrendingSongs(): Promise<Song[]> {
 export async function searchAlbums(query: string): Promise<Album[]> {
   if (!query.trim()) return [];
   try {
-    const res = await fetch(`${BASE_URL}/search/albums?query=${encodeURIComponent(query)}&limit=20`);
+    const res = await fetch(`${BASE_URL}/search/albums?query=${encodeURIComponent(query)}&limit=40`);
     const data = await res.json();
     if (data.status !== "SUCCESS" || !data.data?.results) return [];
     return data.data.results.map(parseAlbum);

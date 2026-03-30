@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Play, Loader2, Trash2, ListPlus } from "lucide-react";
-import { Song, Playlist, getPlaylistById, removeSongFromPlaylist } from "@/lib/api";
+import { ArrowLeft, Play, Loader2, Trash2, ListPlus, Heart } from "lucide-react";
+import { Song, Playlist, getPlaylistById, removeSongFromPlaylist, toggleFavorite, isFavorite } from "@/lib/api";
 import SongRow from "./SongRow";
+import AddToPlaylistModal from "./AddToPlaylistModal";
 
 interface PlaylistDetailProps {
   playlistId: string;
@@ -12,9 +13,19 @@ interface PlaylistDetailProps {
 
 export default function PlaylistDetail({ playlistId, onBack, onPlay, currentSongId }: PlaylistDetailProps) {
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [addMultiple, setAddMultiple] = useState<Song[] | null>(null);
+  const [favorites, setFavorites] = useState(new Set<string>());
 
   useEffect(() => {
-    setPlaylist(getPlaylistById(playlistId));
+    const pl = getPlaylistById(playlistId);
+    setPlaylist(pl);
+    if (pl) {
+      const favs = new Set<string>();
+      pl.songs.forEach(song => {
+        if (isFavorite(song.id)) favs.add(song.id);
+      });
+      setFavorites(favs);
+    }
   }, [playlistId]);
 
   const handleRemoveSong = (songId: string) => {
@@ -28,6 +39,25 @@ export default function PlaylistDetail({ playlistId, onBack, onPlay, currentSong
     }
   }, [playlist, onPlay]);
 
+  const handleAddAllToFavorites = useCallback(() => {
+    if (playlist?.songs) {
+      const newFavs = new Set(favorites);
+      playlist.songs.forEach(song => {
+        if (!isFavorite(song.id)) {
+          toggleFavorite(song);
+          newFavs.add(song.id);
+        }
+      });
+      setFavorites(newFavs);
+    }
+  }, [playlist, favorites]);
+
+  const handleAddAllToPlaylist = useCallback(() => {
+    if (playlist?.songs && playlist.songs.length > 0) {
+      setAddMultiple(playlist.songs);
+    }
+  }, [playlist]);
+
   if (!playlist) {
     return (
       <div className="text-center py-16">
@@ -39,9 +69,12 @@ export default function PlaylistDetail({ playlistId, onBack, onPlay, currentSong
 
   return (
     <div>
+      {addMultiple && (
+        <AddToPlaylistModal songs={addMultiple} onClose={() => setAddMultiple(null)} />
+      )}
       {/* Header */}
       <div className="flex items-end gap-5 mb-6">
-        <button onClick={onBack} className="text-muted-foreground hover:text-foreground mb-1">
+        <button onClick={onBack} className="text-muted-foreground hover:text-foreground mb-1" title="Go back">
           <ArrowLeft size={20} />
         </button>
         {playlist.image ? (
@@ -57,12 +90,29 @@ export default function PlaylistDetail({ playlistId, onBack, onPlay, currentSong
           {playlist.description && <p className="text-sm text-muted-foreground mt-1">{playlist.description}</p>}
           <p className="text-sm text-muted-foreground mt-0.5">{playlist.songs.length} songs</p>
           {playlist.songs.length > 0 && (
-            <button
-              onClick={handlePlayAll}
-              className="mt-3 inline-flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-full text-sm font-semibold hover:scale-105 transition-transform"
-            >
-              <Play size={16} fill="currentColor" /> Play All
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+              <button
+                onClick={handlePlayAll}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-colors"
+                title="Play all songs"
+              >
+                <Play size={14} fill="currentColor" /> <span className="hidden sm:inline">Play All</span><span className="sm:hidden">Play</span>
+              </button>
+              <button
+                onClick={handleAddAllToPlaylist}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-xs sm:text-sm font-semibold hover:bg-secondary/90 transition-colors"
+                title="Add all to another playlist"
+              >
+                <ListPlus size={14} /> <span className="hidden sm:inline">Add to Playlist</span><span className="sm:hidden">Add</span>
+              </button>
+              <button
+                onClick={handleAddAllToFavorites}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-lg text-xs sm:text-sm font-semibold hover:bg-accent/90 transition-colors"
+                title="Add all to favorites"
+              >
+                <Heart size={14} /> <span className="hidden sm:inline">Favorites</span><span className="sm:hidden">♥</span>
+              </button>
+            </div>
           )}
         </div>
       </div>

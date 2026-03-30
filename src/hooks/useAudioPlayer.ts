@@ -81,15 +81,26 @@ export function useAudioPlayer() {
 
     // YouTube fallback: if JioSaavn URL is missing/invalid
     if (!isSongPlayable(song) && song.source !== "local") {
-      console.log(`[Player] Song "${song.name}" has no playable URL, trying YouTube fallback...`);
+      console.log(`[Player] Song "${song.name}" [${song.id}] has no playable URL`);
+      console.log(`[Player] URL: "${song.url}" (type: ${typeof song.url})`);
+      console.log(`[Player] Attempting YouTube fallback...`);
+      
       toast.info(`Finding "${song.name}" on YouTube...`);
 
-      const ytSong = await ytFallbackSearch(song.name, song.artist);
-      if (ytSong) {
-        songToPlay = { ...song, url: ytSong.url, image: song.image || ytSong.image };
-        toast.success(`Playing via YouTube`);
-      } else {
-        toast.error(`Could not find a playable source for "${song.name}"`);
+      try {
+        const ytSong = await ytFallbackSearch(song.name, song.artist);
+        if (ytSong && ytSong.url) {
+          songToPlay = { ...song, url: ytSong.url, image: song.image || ytSong.image };
+          console.log(`[Player] ✓ YouTube fallback success`);
+          toast.success(`Playing via YouTube`);
+        } else {
+          console.error(`[Player] YouTube fallback returned null or no URL`);
+          toast.error(`Could not find "${song.name}" on YouTube`);
+          return;
+        }
+      } catch (err) {
+        console.error(`[Player] YouTube fallback threw error:`, err);
+        toast.error(`Error during fallback: ${err instanceof Error ? err.message : String(err)}`);
         return;
       }
     }
@@ -97,7 +108,9 @@ export function useAudioPlayer() {
     setCurrentSong(songToPlay);
     addToRecentlyPlayed(songToPlay);
     audio.src = songToPlay.url;
-    audio.play().catch(() => {});
+    audio.play().catch((err) => {
+      console.error(`[Player] Play error:`, err);
+    });
   }, [shuffle, buildShuffleOrder]);
 
   const togglePlay = useCallback(() => {
@@ -189,6 +202,14 @@ export function useAudioPlayer() {
     }
   }, [queue, playSong]);
 
+  const enqueue = useCallback((song: Song) => {
+    if (queue.length === 0) {
+      playSong(song, [song], 0);
+    } else {
+      setQueue(prev => [...prev, song]);
+    }
+  }, [queue, playSong]);
+
   return {
     currentSong,
     isPlaying,
@@ -208,5 +229,6 @@ export function useAudioPlayer() {
     toggleShuffle,
     toggleRepeat,
     playFromQueue,
+    enqueue,
   };
 }

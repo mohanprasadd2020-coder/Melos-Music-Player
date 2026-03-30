@@ -4,6 +4,7 @@ import MobileNav from "@/components/MobileNav";
 import SearchBar from "@/components/SearchBar";
 import SongGrid from "@/components/SongGrid";
 import MusicPlayer from "@/components/MusicPlayer";
+import RightPanel from "@/components/RightPanel";
 import AlbumCard from "@/components/AlbumCard";
 import AlbumDetail from "@/components/AlbumDetail";
 import PlaylistCard from "@/components/PlaylistCard";
@@ -15,7 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Song, Album, searchSongs, searchAlbums, getTrendingSongs, getTrendingAlbums,
   getRecentlyPlayed, getFavorites, getPlaylists, searchPlaylists,
-  createPlaylist, deletePlaylist,
+  createPlaylist, deletePlaylist, isFavorite, toggleFavorite,
 } from "@/lib/api";
 import { Loader2, Plus, ListPlus, Upload, User, LogOut, Search as SearchIcon } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
@@ -43,8 +44,57 @@ export default function Index() {
   const [ytSongs, setYtSongs] = useState<Song[]>([]);
   const [ytQuery, setYtQuery] = useState("");
   const [ytLoading, setYtLoading] = useState(false);
+  const [rightPanelSong, setRightPanelSong] = useState<Song | null>(null);
   const player = useAudioPlayer();
   const auth = useAuth();
+
+  // YouTube auto-search handler
+  const handleYtSearch = useCallback(async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setYtSongs([]);
+      return;
+    }
+    setYtLoading(true);
+    try {
+      const songs = await ytSearchSongs(searchTerm);
+      setYtSongs(songs);
+      if (songs.length === 0) {
+        toast.info("No songs found on YouTube");
+      }
+    } catch (error) {
+      console.error("YouTube search error:", error);
+      toast.error("YouTube search failed. Try again.");
+      setYtSongs([]);
+    }
+    setYtLoading(false);
+  }, []);
+
+  // Load trending on first YouTube visit
+  useEffect(() => {
+    if (view === "youtube" && ytSongs.length === 0 && !ytLoading && !ytQuery) {
+      setYtLoading(true);
+      ytTrendingSongs().then((songs) => {
+        setYtSongs(songs);
+        setYtLoading(false);
+      }).catch(() => {
+        setYtSongs([]);
+        setYtLoading(false);
+      });
+    }
+  }, [view]);
+
+  // Auto-search as user types (with debounce)
+  useEffect(() => {
+    if (view !== "youtube") return;
+    if (!ytQuery.trim()) {
+      setYtSongs([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      handleYtSearch(ytQuery);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [ytQuery, handleYtSearch, view]);
 
   // Auto-play on local file selection
   const handleLocalFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,7 +192,7 @@ export default function Index() {
               <>
                 {albumResults.length > 0 && (
                   <section className="mb-8">
-                    <h2 className="text-xl font-bold text-foreground mb-4">Albums</h2>
+                    <h2 className="text-xl font-bold text-foreground mb-4 pb-2 border-b border-border/30">Albums</h2>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                       {albumResults.slice(0, 6).map((album, i) => (
                         <div key={album.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
@@ -187,7 +237,7 @@ export default function Index() {
       case "albums":
         return (
           <section className="mb-8">
-            <h2 className="text-xl font-bold text-foreground mb-4">Browse Albums</h2>
+            <h2 className="text-xl font-bold text-foreground mb-4 pb-2 border-b border-border/30">Browse Albums</h2>
             {trendingAlbums.length === 0 ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -211,11 +261,11 @@ export default function Index() {
 
         return (
           <section className="mb-8">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-border/30">
               <h2 className="text-xl font-bold text-foreground">Your Playlists</h2>
               <button
                 onClick={() => setShowCreatePlaylist(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-xs font-semibold hover:scale-105 transition-transform"
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-semibold hover:bg-primary/90 transition-all duration-200 shadow-md-elevated hover:shadow-lg-card"
               >
                 <Plus size={14} /> New
               </button>
@@ -226,7 +276,7 @@ export default function Index() {
                 value={playlistSearchQuery}
                 onChange={(e) => setPlaylistSearchQuery(e.target.value)}
                 placeholder="Search playlists..."
-                className="w-full max-w-xs h-9 px-3 rounded-md bg-secondary text-foreground text-sm placeholder:text-muted-foreground outline-none border border-transparent focus:border-foreground/20 transition-colors"
+                className="w-full max-w-xs h-9 px-3 rounded-md bg-secondary/70 text-foreground text-sm placeholder:text-muted-foreground outline-none border border-border/50 focus:border-primary/50 focus:bg-card transition-all duration-200"
               />
             </div>
 
@@ -280,7 +330,7 @@ export default function Index() {
         );
       }
 
-      case "favorites":
+      case "favorites": {
         const favs = getFavorites();
         return (
           <SongGrid
@@ -291,8 +341,9 @@ export default function Index() {
             {...contextMenuProps}
           />
         );
+      }
 
-      case "recent":
+      case "recent": {
         const recent = getRecentlyPlayed();
         return (
           <SongGrid
@@ -303,8 +354,9 @@ export default function Index() {
             {...contextMenuProps}
           />
         );
+      }
 
-      case "library":
+      case "library": {
         const lib = [...getFavorites(), ...getRecentlyPlayed()];
         const unique = lib.filter((s, i, a) => a.findIndex(x => x.id === s.id) === i);
         return (
@@ -316,6 +368,7 @@ export default function Index() {
             {...contextMenuProps}
           />
         );
+      }
 
       case "local":
         return (
@@ -343,23 +396,7 @@ export default function Index() {
           </>
         );
 
-      case "youtube": {
-        const handleYtSearch = async () => {
-          if (!ytQuery.trim()) return;
-          setYtLoading(true);
-          const songs = await ytSearchSongs(ytQuery);
-          setYtSongs(songs);
-          setYtLoading(false);
-        };
-
-        if (ytSongs.length === 0 && !ytLoading && !ytQuery) {
-          setYtLoading(true);
-          ytTrendingSongs().then((songs) => {
-            setYtSongs(songs);
-            setYtLoading(false);
-          });
-        }
-
+      case "youtube":
         return (
           <>
             <div className="mb-6">
@@ -370,20 +407,21 @@ export default function Index() {
                   <input
                     value={ytQuery}
                     onChange={(e) => setYtQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleYtSearch()}
                     placeholder="Search YouTube Music..."
                     className="w-full h-10 pl-9 pr-3 rounded-lg bg-secondary text-foreground text-sm placeholder:text-muted-foreground outline-none border border-transparent focus:border-primary/50 transition-colors"
                   />
                 </div>
-                <button
-                  onClick={handleYtSearch}
-                  disabled={ytLoading || !ytQuery.trim()}
-                  className="h-10 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium disabled:opacity-50 hover:opacity-90 transition-opacity"
-                >
-                  Search
-                </button>
+                {ytQuery.trim() && (
+                  <button
+                    onClick={() => setYtQuery("")}
+                    className="h-10 px-3 text-muted-foreground hover:text-foreground transition-colors"
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">Audio-only playback • No video</p>
+              <p className="text-xs text-muted-foreground mt-2">Audio-only playback • Auto-search as you type</p>
             </div>
             {ytLoading ? (
               <div className="flex items-center justify-center py-16">
@@ -393,14 +431,13 @@ export default function Index() {
               <SongGrid
                 title={ytQuery ? `Results for "${ytQuery}"` : "Trending on YouTube"}
                 songs={ytSongs}
-                emptyMessage="Search for songs on YouTube"
+                emptyMessage={ytQuery ? "No songs found. Try another search." : "Start typing to search YouTube Music"}
                 onPlay={(song, i) => handlePlay(ytSongs, song, i)}
                 {...contextMenuProps}
               />
             )}
           </>
         );
-      }
 
       default:
         return (
@@ -487,19 +524,21 @@ export default function Index() {
       <Sidebar currentView={view} onNavigate={navigate} />
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="flex items-center gap-3 px-4 md:px-6 py-3 bg-background/80 backdrop-blur-md sticky top-0 z-30">
+        <header className="flex items-center gap-3 px-4 md:px-6 py-4 bg-background/90 backdrop-blur-md sticky top-0 z-30 border-b border-border/30 shadow-sm-subtle">
           <SearchBar value={query} onChange={handleSearchChange} />
           <label
             title="Add local audio files"
-            className="shrink-0 w-10 h-10 rounded-full bg-secondary hover:bg-accent flex items-center justify-center cursor-pointer transition-colors"
+            className="shrink-0 w-10 h-10 rounded-lg bg-secondary hover:bg-accent flex items-center justify-center cursor-pointer transition-all duration-200 shadow-sm-subtle hover:shadow-md-elevated"
           >
             <Upload size={18} className="text-muted-foreground" />
             <input
               type="file"
               accept="audio/*"
               multiple
+              title="Select audio files"
               className="hidden"
               onChange={handleLocalFiles}
+              aria-label="Upload audio files"
             />
           </label>
           {auth.user ? (
@@ -509,7 +548,7 @@ export default function Index() {
               </div>
               <button
                 onClick={() => { auth.signOut(); toast.success("Signed out"); }}
-                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-md hover:bg-secondary"
                 title="Sign out"
               >
                 <LogOut size={16} />
@@ -518,7 +557,7 @@ export default function Index() {
           ) : (
             <button
               onClick={() => setShowAuth(true)}
-              className="shrink-0 w-10 h-10 rounded-full bg-secondary hover:bg-accent flex items-center justify-center transition-colors"
+              className="shrink-0 w-10 h-10 rounded-lg bg-secondary hover:bg-accent flex items-center justify-center transition-all duration-200 shadow-sm-subtle hover:shadow-md-elevated"
               title="Sign in"
             >
               <User size={18} className="text-muted-foreground" />
@@ -526,10 +565,25 @@ export default function Index() {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-6 py-4 pb-40">
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-8 py-6 pb-40">
           {renderContent()}
         </div>
       </main>
+
+      <RightPanel
+        song={rightPanelSong || player.currentSong}
+        isFavorite={rightPanelSong ? isFavorite(rightPanelSong.id) : (player.currentSong ? isFavorite(player.currentSong.id) : false)}
+        onAddToPlaylist={(song) => setAddSongToPlaylist(song)}
+        onToggleFavorite={(song) => {
+          toggleFavorite(song);
+          setRightPanelSong(rightPanelSong ? { ...rightPanelSong } : null);
+        }}
+        onAddToQueue={(song) => {
+          // Add to queue functionality
+          (player as any).enqueue(song);
+        }}
+        onClose={() => setRightPanelSong(null)}
+      />
 
       <MobileNav currentView={view} onNavigate={navigate} />
       <MusicPlayer

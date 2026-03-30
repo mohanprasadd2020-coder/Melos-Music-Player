@@ -3,11 +3,14 @@ import { X, Plus, Check } from "lucide-react";
 import { Song, getPlaylists, createPlaylist, addSongToPlaylist } from "@/lib/api";
 
 interface AddToPlaylistModalProps {
-  song: Song;
+  song?: Song;
+  songs?: Song[];
   onClose: () => void;
 }
 
-export default function AddToPlaylistModal({ song, onClose }: AddToPlaylistModalProps) {
+export default function AddToPlaylistModal({ song, songs, onClose }: AddToPlaylistModalProps) {
+  const songsToAdd = songs || (song ? [song] : []);
+  const isBulkAdd = songs && songs.length > 1;
   const [playlists, setPlaylists] = useState(getPlaylists());
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -16,7 +19,7 @@ export default function AddToPlaylistModal({ song, onClose }: AddToPlaylistModal
   const handleCreate = () => {
     if (!newName.trim()) return;
     const pl = createPlaylist(newName.trim());
-    addSongToPlaylist(pl.id, song);
+    songsToAdd.forEach(s => addSongToPlaylist(pl.id, s));
     setAdded(prev => new Set(prev).add(pl.id));
     setPlaylists(getPlaylists());
     setNewName("");
@@ -24,7 +27,11 @@ export default function AddToPlaylistModal({ song, onClose }: AddToPlaylistModal
   };
 
   const handleAdd = (playlistId: string) => {
-    const success = addSongToPlaylist(playlistId, song);
+    let success = true;
+    songsToAdd.forEach(s => {
+      const result = addSongToPlaylist(playlistId, s);
+      success = success && result;
+    });
     if (success) {
       setAdded(prev => new Set(prev).add(playlistId));
     }
@@ -37,21 +44,42 @@ export default function AddToPlaylistModal({ song, onClose }: AddToPlaylistModal
         className="bg-card border border-border rounded-xl w-full max-w-sm shadow-2xl animate-scale-in"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h3 className="font-semibold text-foreground">Add to Playlist</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <h3 className="font-semibold text-foreground">
+            {isBulkAdd ? `Add ${songsToAdd.length} songs to Playlist` : "Add to Playlist"}
+          </h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground" title="Close">
             <X size={18} />
           </button>
         </div>
 
         <div className="p-4">
-          {/* Add to song info */}
-          <div className="flex items-center gap-3 mb-4 bg-accent/50 rounded-md p-2">
-            <img src={song.image || "/placeholder.svg"} alt="" className="w-10 h-10 rounded object-cover" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground truncate">{song.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+          {/* Song info - only show for single songs */}
+          {!isBulkAdd && song && (
+            <div className="flex items-center gap-3 mb-4 bg-accent/50 rounded-md p-2">
+              <img src={song.image || "/placeholder.svg"} alt="" className="w-10 h-10 rounded object-cover" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground truncate">{song.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Bulk add info */}
+          {isBulkAdd && (
+            <div className="mb-4 bg-accent/50 rounded-md p-3">
+              <p className="text-sm font-medium text-foreground mb-2">Adding to playlist:</p>
+              <div className="max-h-24 overflow-y-auto">
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  {songsToAdd.slice(0, 3).map(s => (
+                    <li key={s.id} className="truncate">• {s.name}</li>
+                  ))}
+                  {songsToAdd.length > 3 && (
+                    <li className="text-primary">+ {songsToAdd.length - 3} more</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          )}
 
           {/* Create new */}
           {creating ? (
@@ -87,7 +115,7 @@ export default function AddToPlaylistModal({ song, onClose }: AddToPlaylistModal
               <p className="text-xs text-muted-foreground text-center py-4">No playlists yet</p>
             ) : (
               playlists.map((pl) => {
-                const isAdded = added.has(pl.id) || pl.songs.some(s => s.id === song.id);
+                const isAdded = added.has(pl.id) || songsToAdd.every(s => pl.songs.some(ps => ps.id === s.id));
                 return (
                   <button
                     key={pl.id}

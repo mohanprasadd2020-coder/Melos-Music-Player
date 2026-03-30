@@ -45,6 +45,7 @@ export default function SongRow({ song, index, isActive, onPlay, onAddToPlaylist
       <button
         onClick={(e) => { e.stopPropagation(); setFav(toggleFavorite(song)); }}
         className={`shrink-0 mx-1 transition-colors ${fav ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100"}`}
+        title={fav ? "Unfavorite" : "Favorite"}
       >
         <Heart size={14} fill={fav ? "currentColor" : "none"} />
       </button>

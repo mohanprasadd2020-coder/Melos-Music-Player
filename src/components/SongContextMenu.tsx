@@ -50,12 +50,29 @@ export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, o
     setOpen(false);
   };
 
+  // Calculate menu position (show upward if near bottom, like Spotify)
+  const getMenuPosition = () => {
+    if (!btnRef.current) return { top: 0, left: 0 };
+    const btnRect = btnRef.current.getBoundingClientRect();
+    const menuHeight = 320; // Approximate menu height
+    const spaceBelow = window.innerHeight - btnRect.bottom;
+    const showAbove = spaceBelow < menuHeight;
+    
+    return {
+      top: showAbove ? btnRect.top - menuHeight - 4 : btnRect.bottom + 4,
+      left: Math.min(btnRect.right - 224, window.innerWidth - 230),
+    };
+  };
+
+  const menuPos = open ? getMenuPosition() : { top: 0, left: 0 };
+
   return (
-    <div className="relative" style={{ zIndex: open ? 9999 : "auto" }}>
+    <div className="relative">
       <button
         ref={btnRef}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        title="Song options"
       >
         <MoreHorizontal size={18} />
       </button>
@@ -66,10 +83,10 @@ export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, o
           onClick={(e) => e.stopPropagation()}
           className="fixed w-56 bg-popover border border-border rounded-lg shadow-2xl py-1.5 overflow-hidden"
           style={{ 
-            zIndex: 9999, 
+            zIndex: 50000, 
             maxHeight: "80vh",
-            top: btnRef.current ? btnRef.current.getBoundingClientRect().bottom + 4 : 0,
-            left: btnRef.current ? Math.min(btnRef.current.getBoundingClientRect().right - 224, window.innerWidth - 230) : 0,
+            top: menuPos.top,
+            left: menuPos.left,
           }}
         >
           <MenuItem

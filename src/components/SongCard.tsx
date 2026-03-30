@@ -22,18 +22,19 @@ export default function SongCard({ song, onPlay, onAddToPlaylist, onAddToQueue }
   return (
     <div
       onClick={onPlay}
-      className="group relative bg-card hover:bg-accent rounded-lg p-3 cursor-pointer transition-all duration-200"
+      className="group relative bg-card hover:bg-accent rounded-lg p-3 cursor-pointer hover-elevate shadow-sm-subtle hover:shadow-md-elevated"
     >
       <div className="relative mb-3">
         <img
           src={song.image || "/placeholder.svg"}
           alt={song.name}
-          className="w-full aspect-square object-cover rounded-md shadow-lg"
+          className="w-full aspect-square object-cover rounded-md shadow-md-elevated"
           loading="lazy"
         />
         <button
-          className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 shadow-xl hover:scale-105"
+          className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 shadow-lg-card hover:scale-110"
           onClick={onPlay}
+          title="Play"
         >
           <Play size={18} fill="currentColor" />
         </button>
@@ -45,6 +46,7 @@ export default function SongCard({ song, onPlay, onAddToPlaylist, onAddToQueue }
           <button
             onClick={handleFav}
             className={`ml-1 transition-colors ${fav ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            title={fav ? "Unfavorite" : "Favorite"}
           >
             <Heart size={14} fill={fav ? "currentColor" : "none"} />
           </button>
