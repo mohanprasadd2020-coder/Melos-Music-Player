@@ -36,6 +36,10 @@ export function useAudioPlayer() {
     audio.addEventListener("loadedmetadata", () => setDuration(audio.duration));
     audio.addEventListener("play", () => setIsPlaying(true));
     audio.addEventListener("pause", () => setIsPlaying(false));
+    audio.addEventListener("error", () => {
+      console.error("[Player] Audio playback error");
+      toast.error("Playback error — skipping to next");
+    });
 
     return () => {
       audio.pause();
