@@ -43,23 +43,23 @@ export interface YTSearchResult {
 /**
  * Search YouTube for a query via Piped.
  */
-export async function ytSearch(query: string): Promise<YTSearchResult[]> {
+export async function ytSearch(query: string, limit = 20): Promise<YTSearchResult[]> {
   for (let attempt = 0; attempt < PIPED_INSTANCES.length; attempt++) {
     const api = getApi();
     try {
-      console.log(`[YT Fallback] Searching "${query}" via ${api}`);
+      console.log(`[YT] Searching "${query}" via ${api}`);
       const res = await fetchWithTimeout(
         `${api}/search?q=${encodeURIComponent(query)}&filter=music_songs`
       );
       if (!res.ok) {
-        console.warn(`[YT Fallback] ${api} returned ${res.status}`);
+        console.warn(`[YT] ${api} returned ${res.status}`);
         rotateInstance();
         continue;
       }
       const data = await res.json();
       const items = (data.items || [])
         .filter((item: any) => item.type === "stream" && item.url)
-        .slice(0, 5)
+        .slice(0, limit)
         .map((item: any) => ({
           videoId: item.url?.replace("/watch?v=", "") || "",
           title: item.title || "Unknown",
@@ -67,14 +67,14 @@ export async function ytSearch(query: string): Promise<YTSearchResult[]> {
           duration: item.duration || 0,
           thumbnail: item.thumbnail || "",
         }));
-      console.log(`[YT Fallback] Found ${items.length} results`);
+      console.log(`[YT] Found ${items.length} results`);
       return items;
     } catch (err) {
-      console.warn(`[YT Fallback] ${api} failed:`, err);
+      console.warn(`[YT] ${api} failed:`, err);
       rotateInstance();
     }
   }
-  console.error("[YT Fallback] All Piped instances failed for search");
+  console.error("[YT] All Piped instances failed for search");
   return [];
 }
 
