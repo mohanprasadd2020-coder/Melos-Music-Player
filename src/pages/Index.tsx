@@ -17,11 +17,12 @@ import {
   getRecentlyPlayed, getFavorites, getPlaylists, searchPlaylists,
   createPlaylist, deletePlaylist,
 } from "@/lib/api";
-import { Loader2, Plus, ListPlus, Upload, User, LogOut } from "lucide-react";
+import { Loader2, Plus, ListPlus, Upload, User, LogOut, Search as SearchIcon } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
 import { toast } from "sonner";
+import { ytSearchSongs, ytTrendingSongs } from "@/lib/youtube";
 
-type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local" | "youtube";
 
 export default function Index() {
   const [view, setView] = useState<View>("home");
@@ -39,6 +40,9 @@ export default function Index() {
   const [addSongToPlaylist, setAddSongToPlaylist] = useState<Song | null>(null);
   const [localSongs, setLocalSongs] = useState<Song[]>([]);
   const [showAuth, setShowAuth] = useState(false);
+  const [ytSongs, setYtSongs] = useState<Song[]>([]);
+  const [ytQuery, setYtQuery] = useState("");
+  const [ytLoading, setYtLoading] = useState(false);
   const player = useAudioPlayer();
   const auth = useAuth();
 
