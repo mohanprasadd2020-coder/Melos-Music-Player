@@ -3,7 +3,7 @@ services:
     name: jiosaavn-jam
     runtime: node
     buildCommand: bun install && bun run build
-    startCommand: s
+    startCommand: bunx serve -s dist -l 3000 --single
     envVars:
       - key: NODE_ENV
         value: production
