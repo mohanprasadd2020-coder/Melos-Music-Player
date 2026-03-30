@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Song, addToRecentlyPlayed } from "@/lib/api";
+import { isSongPlayable, ytFallbackSearch } from "@/lib/youtube";
+import { toast } from "sonner";
 
 export type RepeatMode = "off" | "all" | "one";
 
@@ -34,6 +36,10 @@ export function useAudioPlayer() {
     audio.addEventListener("loadedmetadata", () => setDuration(audio.duration));
     audio.addEventListener("play", () => setIsPlaying(true));
     audio.addEventListener("pause", () => setIsPlaying(false));
+    audio.addEventListener("error", () => {
+      console.error("[Player] Audio playback error");
+      toast.error("Playback error — skipping to next");
+    });
 
     return () => {
       audio.pause();
@@ -59,7 +65,7 @@ export function useAudioPlayer() {
     return () => audio.removeEventListener("ended", handleEnded);
   }, [repeat, queue, queueIndex, shuffle, shuffleOrder]);
 
-  const playSong = useCallback((song: Song, playlist?: Song[], index?: number) => {
+  const playSong = useCallback(async (song: Song, playlist?: Song[], index?: number) => {
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -71,9 +77,26 @@ export function useAudioPlayer() {
       }
     }
 
-    setCurrentSong(song);
-    addToRecentlyPlayed(song);
-    audio.src = song.url;
+    let songToPlay = song;
+
+    // YouTube fallback: if JioSaavn URL is missing/invalid
+    if (!isSongPlayable(song) && song.source !== "local") {
+      console.log(`[Player] Song "${song.name}" has no playable URL, trying YouTube fallback...`);
+      toast.info(`Finding "${song.name}" on YouTube...`);
+
+      const ytSong = await ytFallbackSearch(song.name, song.artist);
+      if (ytSong) {
+        songToPlay = { ...song, url: ytSong.url, image: song.image || ytSong.image };
+        toast.success(`Playing via YouTube`);
+      } else {
+        toast.error(`Could not find a playable source for "${song.name}"`);
+        return;
+      }
+    }
+
+    setCurrentSong(songToPlay);
+    addToRecentlyPlayed(songToPlay);
+    audio.src = songToPlay.url;
     audio.play().catch(() => {});
   }, [shuffle, buildShuffleOrder]);
 
