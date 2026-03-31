@@ -1,39 +1,103 @@
 import { useState } from "react";
 import { X, Plus, Check } from "lucide-react";
-import { Song, getPlaylists, createPlaylist, addSongToPlaylist } from "@/lib/api";
+import { Song, Playlist, addSongToPlaylistForUser } from "@/lib/api";
+import { toast } from "sonner";
 
 interface AddToPlaylistModalProps {
   song?: Song;
   songs?: Song[];
+  playlists: Playlist[];
+  userId?: string;
   onClose: () => void;
+  onCreatePlaylist: (name: string) => Promise<Playlist>;
+  onAddToPlaylist: (playlistId: string, songs: Song[]) => Promise<boolean>;
 }
 
-export default function AddToPlaylistModal({ song, songs, onClose }: AddToPlaylistModalProps) {
+export default function AddToPlaylistModal({ 
+  song, 
+  songs, 
+  playlists,
+  userId,
+  onClose,
+  onCreatePlaylist,
+  onAddToPlaylist,
+}: AddToPlaylistModalProps) {
   const songsToAdd = songs || (song ? [song] : []);
   const isBulkAdd = songs && songs.length > 1;
-  const [playlists, setPlaylists] = useState(getPlaylists());
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!newName.trim()) return;
-    const pl = createPlaylist(newName.trim());
-    songsToAdd.forEach(s => addSongToPlaylist(pl.id, s));
-    setAdded(prev => new Set(prev).add(pl.id));
-    setPlaylists(getPlaylists());
-    setNewName("");
-    setCreating(false);
+    try {
+      setIsLoading(true);
+      console.log("[AddToPlaylistModal] Creating new playlist:", newName);
+      const newPlaylist = await onCreatePlaylist(newName.trim());
+      
+      // Add songs to the new playlist - ensuring database sync
+      const songsAddedSuccessfully = await Promise.all(
+        songsToAdd.map(s => addSongToPlaylistForUser(newPlaylist.id, s, userId))
+      );
+      
+      if (songsAddedSuccessfully.every(s => s)) {
+        console.log("[AddToPlaylistModal] All songs added to new playlist");
+        setAdded(prev => new Set(prev).add(newPlaylist.id));
+        toast.success(`Created playlist and added ${songsToAdd.length} song(s)`);
+      }
+      
+      setNewName("");
+      setCreating(false);
+    } catch (err) {
+      console.error("[AddToPlaylistModal] Error creating playlist:", err);
+      toast.error("Failed to create playlist");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleAdd = (playlistId: string) => {
-    let success = true;
-    songsToAdd.forEach(s => {
-      const result = addSongToPlaylist(playlistId, s);
-      success = success && result;
-    });
-    if (success) {
-      setAdded(prev => new Set(prev).add(playlistId));
+  const handleAdd = async (playlistId: string) => {
+    try {
+      setIsLoading(true);
+      console.log("[AddToPlaylistModal] Adding", songsToAdd.length, "song(s) to playlist:", playlistId);
+      
+      // Add each song individually to ensure database sync
+      const results = await Promise.all(
+        songsToAdd.map(s => addSongToPlaylistForUser(playlistId, s, userId))
+      );
+      
+      if (results.some(r => r)) {
+        const successCount = results.filter(r => r).length;
+        console.log("[AddToPlaylistModal] Successfully added", successCount, "song(s) to database");
+        const duplicateCount = songsToAdd.length - successCount;
+        
+        setAdded(prev => new Set(prev).add(playlistId));
+        
+        // Verify data was saved
+        if (userId) {
+          setTimeout(async () => {
+            try {
+              const { verifyPlaylistInDatabase } = await import("@/lib/api");
+              const verified = await verifyPlaylistInDatabase(playlistId, userId);
+              console.log("[AddToPlaylistModal] Data persistence verified:", verified);
+            } catch (err) {
+              console.error("[AddToPlaylistModal] Verification error:", err);
+            }
+          }, 800);
+        }
+        
+        if (duplicateCount > 0) {
+          toast.success(`Added ${successCount} song(s) (${duplicateCount} already in playlist)`);
+        } else {
+          toast.success(`Added ${successCount} song(s) to playlist`);
+        }
+      }
+    } catch (err) {
+      console.error("[AddToPlaylistModal] Error adding to playlist:", err);
+      toast.error("Failed to add songs to playlist");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -90,11 +154,12 @@ export default function AddToPlaylistModal({ song, songs, onClose }: AddToPlayli
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                 placeholder="Playlist name"
-                className="flex-1 h-9 px-3 rounded-md bg-secondary text-foreground text-sm placeholder:text-muted-foreground outline-none border border-transparent focus:border-primary/50"
+                disabled={isLoading}
+                className="flex-1 h-9 px-3 rounded-md bg-secondary text-foreground text-sm placeholder:text-muted-foreground outline-none border border-transparent focus:border-primary/50 disabled:opacity-50"
               />
               <button
                 onClick={handleCreate}
-                disabled={!newName.trim()}
+                disabled={!newName.trim() || isLoading}
                 className="h-9 px-3 bg-primary text-primary-foreground rounded-md text-sm font-medium disabled:opacity-50"
               >
                 Create
@@ -103,7 +168,8 @@ export default function AddToPlaylistModal({ song, songs, onClose }: AddToPlayli
           ) : (
             <button
               onClick={() => setCreating(true)}
-              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium text-primary hover:bg-accent transition-colors mb-2"
+              disabled={isLoading}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium text-primary hover:bg-accent transition-colors mb-2 disabled:opacity-50"
             >
               <Plus size={18} /> New Playlist
             </button>
@@ -120,9 +186,9 @@ export default function AddToPlaylistModal({ song, songs, onClose }: AddToPlayli
                   <button
                     key={pl.id}
                     onClick={() => !isAdded && handleAdd(pl.id)}
-                    disabled={isAdded}
+                    disabled={isAdded || isLoading}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors text-left ${
-                      isAdded ? "opacity-60" : "hover:bg-accent"
+                      isAdded || isLoading ? "opacity-60" : "hover:bg-accent"
                     }`}
                   >
                     {pl.image ? (

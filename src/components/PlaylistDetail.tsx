@@ -1,36 +1,60 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Play, Loader2, Trash2, ListPlus, Heart } from "lucide-react";
-import { Song, Playlist, getPlaylistById, removeSongFromPlaylist, toggleFavorite, isFavorite } from "@/lib/api";
+import { Song, Playlist, removeSongFromPlaylist, toggleFavorite, isFavorite, removeSongFromPlaylistForUser } from "@/lib/api";
 import SongRow from "./SongRow";
 import AddToPlaylistModal from "./AddToPlaylistModal";
 
 interface PlaylistDetailProps {
+  playlist: Playlist | null;
   playlistId: string;
+  userId?: string;
+  allPlaylists: Playlist[];
   onBack: () => void;
   onPlay: (songs: Song[], song: Song, index: number) => void;
+  onUpdatePlaylist: (updatedPlaylist: Playlist) => void;
+  onCreatePlaylist?: (name: string) => Promise<Playlist>;
+  onAddToPlaylist?: (playlistId: string, songs: Song[]) => Promise<boolean>;
   currentSongId?: string;
 }
 
-export default function PlaylistDetail({ playlistId, onBack, onPlay, currentSongId }: PlaylistDetailProps) {
-  const [playlist, setPlaylist] = useState<Playlist | null>(null);
+export default function PlaylistDetail({ 
+  playlist: initialPlaylist,
+  playlistId, 
+  userId,
+  allPlaylists,
+  onBack, 
+  onPlay,
+  onUpdatePlaylist,
+  onCreatePlaylist,
+  onAddToPlaylist,
+  currentSongId 
+}: PlaylistDetailProps) {
+  const [playlist, setPlaylist] = useState<Playlist | null>(initialPlaylist);
   const [addMultiple, setAddMultiple] = useState<Song[] | null>(null);
   const [favorites, setFavorites] = useState(new Set<string>());
 
   useEffect(() => {
-    const pl = getPlaylistById(playlistId);
-    setPlaylist(pl);
-    if (pl) {
+    if (initialPlaylist) {
+      setPlaylist(initialPlaylist);
       const favs = new Set<string>();
-      pl.songs.forEach(song => {
+      initialPlaylist.songs.forEach(song => {
         if (isFavorite(song.id)) favs.add(song.id);
       });
       setFavorites(favs);
     }
-  }, [playlistId]);
+  }, [initialPlaylist, playlistId]);
 
-  const handleRemoveSong = (songId: string) => {
-    removeSongFromPlaylist(playlistId, songId);
-    setPlaylist(getPlaylistById(playlistId));
+  const handleRemoveSong = async (songId: string) => {
+    if (!playlist) return;
+    try {
+      // Update both localStorage and database
+      await removeSongFromPlaylistForUser(playlistId, songId, userId);
+      const updatedPlaylist = { ...playlist, songs: playlist.songs.filter(s => s.id !== songId) };
+      setPlaylist(updatedPlaylist);
+      onUpdatePlaylist(updatedPlaylist);
+    } catch (err) {
+      console.error("Error removing song:", err);
+    }
   };
 
   const handlePlayAll = useCallback(() => {
@@ -70,7 +94,14 @@ export default function PlaylistDetail({ playlistId, onBack, onPlay, currentSong
   return (
     <div>
       {addMultiple && (
-        <AddToPlaylistModal songs={addMultiple} onClose={() => setAddMultiple(null)} />
+        <AddToPlaylistModal 
+          songs={addMultiple} 
+          playlists={allPlaylists.filter(p => p.id !== playlistId)}
+          userId={userId}
+          onClose={() => setAddMultiple(null)}
+          onCreatePlaylist={onCreatePlaylist || (async (name) => { throw new Error("Not implemented"); })}
+          onAddToPlaylist={onAddToPlaylist || (async () => false)}
+        />
       )}
       {/* Header */}
       <div className="flex items-end gap-5 mb-6">

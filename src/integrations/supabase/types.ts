@@ -14,7 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      playlists: {
+        Row: {
+          id: string
+          user_id: string
+          playlist_id: string
+          name: string
+          description: string | null
+          image: string | null
+          songs: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          playlist_id: string
+          name: string
+          description?: string | null
+          image?: string | null
+          songs?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          playlist_id?: string
+          name?: string
+          description?: string | null
+          image?: string | null
+          songs?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlists_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

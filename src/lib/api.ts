@@ -250,3 +250,343 @@ export function toggleFavorite(song: Song): boolean {
 export function isFavorite(songId: string): boolean {
   return getFavorites().some((s) => s.id === songId);
 }
+
+// ─── Database-Backed Playlists (User-Specific) ───
+
+import { supabase } from "@/integrations/supabase/client";
+
+/**
+ * Fetch all playlists for a specific user from the database
+ * Falls back to localStorage if no user or database error
+ */
+export async function getPlaylistsForUser(userId: string | undefined): Promise<Playlist[]> {
+  // If no user, return localStorage playlists
+  if (!userId) {
+    console.log("[Playlists] No user ID provided, using localStorage");
+    return getPlaylists();
+  }
+
+  try {
+    console.log("[Playlists] Fetching playlists for user:", userId);
+    const { data, error } = await supabase
+      .from("playlists")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[Playlists] Database fetch error:", error);
+      console.log("[Playlists] Falling back to localStorage");
+      return getPlaylists();
+    }
+
+    if (!data || data.length === 0) {
+      console.log("[Playlists] No playlists found in database for user");
+      return [];
+    }
+
+    // Convert database rows to Playlist objects
+    const playlists: Playlist[] = data.map((row: any) => ({
+      id: row.playlist_id,
+      name: row.name,
+      description: row.description || "",
+      image: row.image || "",
+      songs: Array.isArray(row.songs) ? row.songs : [],
+      createdAt: new Date(row.created_at).getTime(),
+    }));
+
+    console.log("[Playlists] Successfully fetched user playlists:", playlists.length);
+    return playlists;
+  } catch (err) {
+    console.error("[Playlists] Unexpected error fetching playlists:", err);
+    console.log("[Playlists] Falling back to localStorage");
+    return getPlaylists();
+  }
+}
+
+/**
+ * Create a new playlist for user and save to database
+ */
+export async function createPlaylistForUser(name: string, userId: string | undefined, description = ""): Promise<Playlist> {
+  const playlist: Playlist = {
+    id: `pl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    description,
+    image: "",
+    songs: [],
+    createdAt: Date.now(),
+  };
+
+  // Always save to localStorage for offline support
+  const playlists = getPlaylists();
+  playlists.unshift(playlist);
+  savePlaylists(playlists);
+
+  // Try to save to database if user is authenticated
+  if (!userId) {
+    console.log("[Playlists] No user ID, playlist saved to localStorage only");
+    return playlist;
+  }
+
+  try {
+    console.log("[Playlists] Saving new playlist to database:", playlist.id);
+    const { error } = await supabase
+      .from("playlists")
+      .insert({
+        user_id: userId,
+        playlist_id: playlist.id,
+        name: playlist.name,
+        description: playlist.description,
+        image: playlist.image,
+        songs: playlist.songs,
+      });
+
+    if (error) {
+      console.error("[Playlists] Failed to save to database:", error);
+      return playlist;
+    }
+
+    console.log("[Playlists] Playlist saved to database successfully");
+  } catch (err) {
+    console.error("[Playlists] Error saving playlist to database:", err);
+  }
+
+  return playlist;
+}
+
+/**
+ * Delete a playlist from both database and localStorage
+ */
+export async function deletePlaylistForUser(playlistId: string, userId: string | undefined): Promise<void> {
+  // Delete from localStorage
+  const playlists = getPlaylists().filter(p => p.id !== playlistId);
+  savePlaylists(playlists);
+
+  // Delete from database if user is authenticated
+  if (!userId) {
+    console.log("[Playlists] No user ID, deleted from localStorage only");
+    return;
+  }
+
+  try {
+    console.log("[Playlists] Deleting playlist from database:", playlistId);
+    const { error } = await supabase
+      .from("playlists")
+      .delete()
+      .eq("playlist_id", playlistId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[Playlists] Failed to delete from database:", error);
+      return;
+    }
+
+    console.log("[Playlists] Playlist deleted from database successfully");
+  } catch (err) {
+    console.error("[Playlists] Error deleting playlist from database:", err);
+  }
+}
+
+/**
+ * Add a song to a playlist in both database and localStorage
+ * Returns: false if song already exists, true if successfully added
+ */
+export async function addSongToPlaylistForUser(playlistId: string, song: Song, userId: string | undefined): Promise<boolean> {
+  // Update localStorage
+  const playlists = getPlaylists();
+  const playlist = playlists.find(p => p.id === playlistId);
+  if (!playlist) {
+    console.warn("[Playlists] Playlist not found:", playlistId);
+    return false;
+  }
+  
+  // Check if song already exists
+  const songExists = playlist.songs.some(s => s.id === song.id);
+  if (songExists) {
+    console.log("[Playlists] Song already in playlist:", playlistId, song.id);
+    return false;
+  }
+  
+  // Add song to playlist
+  const updatedSongs = [...playlist.songs, song];
+  playlist.songs = updatedSongs;
+  
+  // Update playlist image if needed
+  if (!playlist.image && song.image) {
+    playlist.image = song.image;
+  }
+  
+  savePlaylists(playlists);
+  console.log("[Playlists] Song added to localStorage playlist:", playlistId, song.id);
+
+  // Update database if user is authenticated
+  if (!userId) {
+    console.log("[Playlists] No user ID, song added to localStorage only");
+    return true;
+  }
+
+  try {
+    console.log("[Playlists] Updating playlist in database:", playlistId, "with", updatedSongs.length, "songs");
+    const { error } = await supabase
+      .from("playlists")
+      .update({
+        songs: updatedSongs,
+        image: playlist.image,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("playlist_id", playlistId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[Playlists] Failed to add song to database:", error);
+      return true; // Still return true since localStorage was updated
+    }
+
+    console.log("[Playlists] Song added to playlist in database successfully");
+    return true;
+  } catch (err) {
+    console.error("[Playlists] Error adding song to database:", err);
+    return true; // Still return true since localStorage was updated
+  }
+}
+
+/**
+ * Remove a song from a playlist in both database and localStorage
+ */
+export async function removeSongFromPlaylistForUser(playlistId: string, songId: string, userId: string | undefined): Promise<void> {
+  // Update localStorage
+  const playlists = getPlaylists();
+  const playlist = playlists.find(p => p.id === playlistId);
+  if (!playlist) return;
+  
+  playlist.songs = playlist.songs.filter(s => s.id !== songId);
+  savePlaylists(playlists);
+
+  // Update database if user is authenticated
+  if (!userId) {
+    console.log("[Playlists] No user ID, song removed from localStorage only");
+    return;
+  }
+
+  try {
+    console.log("[Playlists] Removing song from playlist in database:", playlistId, songId);
+    const { error } = await supabase
+      .from("playlists")
+      .update({
+        songs: playlist.songs,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("playlist_id", playlistId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[Playlists] Failed to remove song from database:", error);
+      return;
+    }
+
+    console.log("[Playlists] Song removed from playlist in database successfully");
+  } catch (err) {
+    console.error("[Playlists] Error removing song from database:", err);
+  }
+}
+
+/**
+ * Migrate playlists from localStorage to database for authenticated user
+ * Called on login to sync local data to cloud
+ */
+export async function migratePlaylistsToDatabase(userId: string): Promise<void> {
+  if (!userId) return;
+
+  try {
+    console.log("[Playlists] Starting migration from localStorage to database for user:", userId);
+    
+    // Get playlists from localStorage
+    const localPlaylists = getPlaylists();
+    
+    if (localPlaylists.length === 0) {
+      console.log("[Playlists] No local playlists to migrate");
+      return;
+    }
+
+    // Check if user already has playlists in database
+    const { data: existingPlaylists, error: fetchError } = await supabase
+      .from("playlists")
+      .select("playlist_id")
+      .eq("user_id", userId);
+
+    if (fetchError) {
+      console.error("[Playlists] Error checking existing playlists:", fetchError);
+      return;
+    }
+
+    const existingIds = new Set((existingPlaylists || []).map(p => p.playlist_id));
+
+    // Filter out playlists that already exist in database
+    const playlistsToMigrate = localPlaylists.filter(p => !existingIds.has(p.id));
+
+    if (playlistsToMigrate.length === 0) {
+      console.log("[Playlists] All local playlists already exist in database");
+      return;
+    }
+
+    console.log("[Playlists] Migrating playlists to database:", playlistsToMigrate.length);
+
+    // Insert all new playlists
+    const { error: insertError } = await supabase
+      .from("playlists")
+      .insert(
+        playlistsToMigrate.map(p => ({
+          user_id: userId,
+          playlist_id: p.id,
+          name: p.name,
+          description: p.description,
+          image: p.image,
+          songs: p.songs,
+        }))
+      );
+
+    if (insertError) {
+      console.error("[Playlists] Error migrating playlists:", insertError);
+      return;
+    }
+
+    console.log("[Playlists] Successfully migrated", playlistsToMigrate.length, "playlists to database");
+  } catch (err) {
+    console.error("[Playlists] Unexpected error during migration:", err);
+  }
+}
+
+/**
+ * Verify that a playlist was saved to database (for debugging)
+ */
+export async function verifyPlaylistInDatabase(playlistId: string, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("playlists")
+      .select("*")
+      .eq("playlist_id", playlistId)
+      .eq("user_id", userId)
+      .single();
+
+    if (error) {
+      console.warn("[Playlists] Playlist verification failed:", error);
+      return false;
+    }
+
+    if (!data) {
+      console.warn("[Playlists] Playlist not found in database:", playlistId);
+      return false;
+    }
+
+    console.log("[Playlists] Playlist verified in database:", {
+      id: playlistId,
+      name: data.name,
+      songs: Array.isArray(data.songs) ? data.songs.length : 0,
+      updatedAt: data.updated_at,
+    });
+    return true;
+  } catch (err) {
+    console.error("[Playlists] Error verifying playlist:", err);
+    return false;
+  }
+}

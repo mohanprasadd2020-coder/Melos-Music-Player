@@ -14,9 +14,10 @@ import AuthModal from "@/components/AuthModal";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  Song, Album, searchSongs, searchAlbums, getTrendingSongs, getTrendingAlbums,
+  Song, Album, Playlist, searchSongs, searchAlbums, getTrendingSongs, getTrendingAlbums,
   getRecentlyPlayed, getFavorites, getPlaylists, searchPlaylists,
   createPlaylist, deletePlaylist, isFavorite, toggleFavorite,
+  getPlaylistsForUser, createPlaylistForUser, deletePlaylistForUser, addSongToPlaylistForUser, migratePlaylistsToDatabase,
 } from "@/lib/api";
 import { Loader2, Plus, ListPlus, Upload, User, LogOut, Search as SearchIcon } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
@@ -45,6 +46,8 @@ export default function Index() {
   const [ytQuery, setYtQuery] = useState("");
   const [ytLoading, setYtLoading] = useState(false);
   const [rightPanelSong, setRightPanelSong] = useState<Song | null>(null);
+  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const player = useAudioPlayer();
   const auth = useAuth();
 
@@ -120,6 +123,38 @@ export default function Index() {
     toast.success(`"${song.name}" will play next`);
   }, []);
 
+  // Load user playlists on login or logout
+  useEffect(() => {
+    const loadUserPlaylists = async () => {
+      setLoadingPlaylists(true);
+      try {
+        const playlists = await getPlaylistsForUser(auth.user?.id);
+        setUserPlaylists(playlists);
+        console.log("[Index] Loaded user playlists:", playlists.length);
+      } catch (err) {
+        console.error("[Index] Error loading user playlists:", err);
+      } finally {
+        setLoadingPlaylists(false);
+      }
+    };
+
+    loadUserPlaylists();
+  }, [auth.user]);
+
+  // Migrate playlists from localStorage to database on first login
+  useEffect(() => {
+    if (auth.user && !loadingPlaylists) {
+      const migrateData = async () => {
+        console.log("[Index] Attempting to migrate playlists to database for user:", auth.user?.id);
+        await migratePlaylistsToDatabase(auth.user!.id);
+        // Reload playlists after migration to ensure we have the latest data
+        const playlists = await getPlaylistsForUser(auth.user!.id);
+        setUserPlaylists(playlists);
+      };
+      migrateData();
+    }
+  }, [auth.user?.id]);
+
   useEffect(() => {
     getTrendingSongs().then(setTrending);
     getTrendingAlbums().then(setTrendingAlbums);
@@ -157,15 +192,41 @@ export default function Index() {
     setView("playlist-detail");
   };
 
-  const handleCreatePlaylist = () => {
+  const handleCreatePlaylist = async () => {
     if (!newPlaylistName.trim()) return;
-    createPlaylist(newPlaylistName.trim());
+    try {
+      console.log("[Index] Creating playlist:", newPlaylistName, "for user:", auth.user?.id);
+      const newPlaylist = await createPlaylistForUser(newPlaylistName.trim(), auth.user?.id);
+      setUserPlaylists(prev => [newPlaylist, ...prev]);
+      
+      // Verify playlist was saved to database
+      if (auth.user?.id) {
+        setTimeout(async () => {
+          const { verifyPlaylistInDatabase } = await import("@/lib/api");
+          const verified = await verifyPlaylistInDatabase(newPlaylist.id, auth.user!.id);
+          console.log("[Index] Playlist verification result:", verified);
+        }, 500);
+      }
+      
+      toast.success(`Playlist "${newPlaylistName}" created!`);
+    } catch (err) {
+      console.error("[Index] Error creating playlist:", err);
+      toast.error("Failed to create playlist");
+    }
     setNewPlaylistName("");
     setShowCreatePlaylist(false);
   };
 
-  const handleDeletePlaylist = (id: string) => {
-    deletePlaylist(id);
+  const handleDeletePlaylist = async (id: string) => {
+    try {
+      console.log("[Index] Deleting playlist:", id, "for user:", auth.user?.id);
+      await deletePlaylistForUser(id, auth.user?.id);
+      setUserPlaylists(prev => prev.filter(p => p.id !== id));
+      toast.success("Playlist deleted");
+    } catch (err) {
+      console.error("[Index] Error deleting playlist:", err);
+      toast.error("Failed to delete playlist");
+    }
     setView("playlists");
   };
 
@@ -227,9 +288,40 @@ export default function Index() {
       case "playlist-detail":
         return (
           <PlaylistDetail
+            playlist={userPlaylists.find(p => p.id === selectedPlaylistId) || null}
             playlistId={selectedPlaylistId}
+            userId={auth.user?.id}
+            allPlaylists={userPlaylists}
             onBack={() => setView("playlists")}
             onPlay={handlePlay}
+            onUpdatePlaylist={(updatedPlaylist) => {
+              setUserPlaylists(prev => 
+                prev.map(p => p.id === updatedPlaylist.id ? updatedPlaylist : p)
+              );
+            }}
+            onCreatePlaylist={async (name) => {
+              const newPlaylist = await createPlaylistForUser(name, auth.user?.id);
+              setUserPlaylists(prev => [newPlaylist, ...prev]);
+              return newPlaylist;
+            }}
+            onAddToPlaylist={async (playlistId, songs) => {
+              let success = true;
+              for (const song of songs) {
+                const result = await addSongToPlaylistForUser(playlistId, song, auth.user?.id);
+                success = success && result;
+              }
+              if (success) {
+                // Update the playlist in our state
+                setUserPlaylists(prev => 
+                  prev.map(p => 
+                    p.id === playlistId 
+                      ? { ...p, songs: [...p.songs, ...songs.filter(s => !p.songs.some(ps => ps.id === s.id))] }
+                      : p
+                  )
+                );
+              }
+              return success;
+            }}
             currentSongId={player.currentSong?.id}
           />
         );
@@ -256,8 +348,12 @@ export default function Index() {
 
       case "playlists": {
         const filteredPlaylists = playlistSearchQuery
-          ? searchPlaylists(playlistSearchQuery)
-          : getPlaylists();
+          ? userPlaylists.filter(p =>
+              p.name.toLowerCase().includes(playlistSearchQuery.toLowerCase()) ||
+              p.description.toLowerCase().includes(playlistSearchQuery.toLowerCase()) ||
+              p.songs.some(s => s.name.toLowerCase().includes(playlistSearchQuery.toLowerCase()) || s.artist.toLowerCase().includes(playlistSearchQuery.toLowerCase()))
+            )
+          : userPlaylists;
 
         return (
           <section className="mb-8">
@@ -478,7 +574,7 @@ export default function Index() {
               </section>
             )}
 
-            {getPlaylists().length > 0 && (
+            {userPlaylists.length > 0 && (
               <section className="mb-8">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-foreground">Your Playlists</h2>
@@ -487,7 +583,7 @@ export default function Index() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-                  {getPlaylists().slice(0, 6).map((pl, i) => (
+                  {userPlaylists.slice(0, 6).map((pl, i) => (
                     <div key={pl.id} className="animate-fade-up" style={{ animationDelay: `${i * 40}ms` }}>
                       <PlaylistCard playlist={pl} onClick={() => openPlaylist(pl.id)} />
                     </div>
@@ -511,7 +607,35 @@ export default function Index() {
   return (
     <div className="flex h-screen overflow-hidden">
       {addSongToPlaylist && (
-        <AddToPlaylistModal song={addSongToPlaylist} onClose={() => setAddSongToPlaylist(null)} />
+        <AddToPlaylistModal 
+          song={addSongToPlaylist} 
+          playlists={userPlaylists}
+          userId={auth.user?.id}
+          onClose={() => setAddSongToPlaylist(null)}
+          onCreatePlaylist={async (name) => {
+            const newPlaylist = await createPlaylistForUser(name, auth.user?.id);
+            setUserPlaylists(prev => [newPlaylist, ...prev]);
+            return newPlaylist;
+          }}
+          onAddToPlaylist={async (playlistId, songs) => {
+            let success = true;
+            for (const song of songs) {
+              const result = await addSongToPlaylistForUser(playlistId, song, auth.user?.id);
+              success = success && result;
+            }
+            if (success) {
+              // Update the playlist in our state
+              setUserPlaylists(prev => 
+                prev.map(p => 
+                  p.id === playlistId 
+                    ? { ...p, songs: [...p.songs, ...songs.filter(s => !p.songs.some(ps => ps.id === s.id))] }
+                    : p
+                )
+              );
+            }
+            return success;
+          }}
+        />
       )}
       {showAuth && (
         <AuthModal
