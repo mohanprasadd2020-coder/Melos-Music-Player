@@ -107,12 +107,7 @@ export default function FullScreenPlayer({
             ))}
           </div>
 
-          <button
-            onClick={() => { setFav(toggleFavorite(song)); }}
-            className={`w-10 h-10 flex items-center justify-center transition-colors ${fav ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Heart size={22} fill={fav ? "currentColor" : "none"} />
-          </button>
+          <div className="w-10 h-10" />
         </div>
 
         {tab === "queue" ? (
