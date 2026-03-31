@@ -6,6 +6,7 @@ import { Song, isFavorite, toggleFavorite } from "@/lib/api";
 import { RepeatMode } from "@/hooks/useAudioPlayer";
 import { useState, useEffect } from "react";
 import { fetchLyrics } from "@/lib/lyrics";
+import { Slider } from "./ui/slider";
 
 interface FullScreenPlayerProps {
   song: Song;
@@ -168,21 +169,13 @@ export default function FullScreenPlayer({
         <div className="px-6 sm:px-12 pb-6 sm:pb-8 pt-2 space-y-3 max-w-[500px] mx-auto w-full">
           {/* Seek bar */}
           <div className="space-y-1">
-            <div
-              className="w-full h-1.5 bg-secondary rounded-full cursor-pointer group relative"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const pct = (e.clientX - rect.left) / rect.width;
-                onSeek(pct * duration);
-              }}
-            >
-              <div
-                className="h-full bg-primary rounded-full relative transition-all"
-                style={{ width: `${progress}%` }}
-              >
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-foreground rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </div>
+            <Slider
+              value={[currentTime]}
+              max={duration || 100}
+              step={1}
+              onValueChange={([val]) => onSeek(val)}
+              className="cursor-pointer"
+            />
             <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
               <span>{fmt(currentTime)}</span>
               <span>{fmt(duration)}</span>
@@ -225,16 +218,13 @@ export default function FullScreenPlayer({
             >
               <VolumeIcon size={18} />
             </button>
-            <div
-              className="w-28 sm:w-36 h-1.5 bg-secondary rounded-full cursor-pointer group"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                onVolumeChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
-              }}
-            >
-              <div
-                className="h-full bg-foreground rounded-full group-hover:bg-primary transition-colors"
-                style={{ width: `${volume * 100}%` }}
+            <div className="w-28 sm:w-36 group">
+              <Slider
+                value={[volume]}
+                max={1}
+                step={0.01}
+                onValueChange={([val]) => onVolumeChange(val)}
+                className="cursor-pointer"
               />
             </div>
           </div>

@@ -18,6 +18,7 @@ import {
   getRecentlyPlayed, getFavorites, getPlaylists, searchPlaylists,
   createPlaylist, deletePlaylist, isFavorite, toggleFavorite,
   getPlaylistsForUser, createPlaylistForUser, deletePlaylistForUser, addSongToPlaylistForUser, migratePlaylistsToDatabase,
+  getFavoritesForUser, getRecentlyPlayedForUser
 } from "@/lib/api";
 import { Loader2, Plus, ListPlus, Upload, User, LogOut, Search as SearchIcon } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
@@ -123,22 +124,26 @@ export default function Index() {
     toast.success(`"${song.name}" will play next`);
   }, []);
 
-  // Load user playlists on login or logout
+  // Load user playlists, favorites, and recent on login or logout
   useEffect(() => {
-    const loadUserPlaylists = async () => {
+    const loadUserData = async () => {
       setLoadingPlaylists(true);
       try {
-        const playlists = await getPlaylistsForUser(auth.user?.id);
+        const [playlists] = await Promise.all([
+          getPlaylistsForUser(auth.user?.id),
+          getFavoritesForUser(auth.user?.id),
+          getRecentlyPlayedForUser(auth.user?.id)
+        ]);
         setUserPlaylists(playlists);
         console.log("[Index] Loaded user playlists:", playlists.length);
       } catch (err) {
-        console.error("[Index] Error loading user playlists:", err);
+        console.error("[Index] Error loading user data:", err);
       } finally {
         setLoadingPlaylists(false);
       }
     };
 
-    loadUserPlaylists();
+    loadUserData();
   }, [auth.user]);
 
   // Migrate playlists from localStorage to database on first login

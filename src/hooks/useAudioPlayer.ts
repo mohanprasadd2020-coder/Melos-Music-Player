@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Song, addToRecentlyPlayed } from "@/lib/api";
+import { Song, addToRecentlyPlayedForUser } from "@/lib/api";
 import { isSongPlayable, ytFallbackSearch } from "@/lib/youtube";
 import { toast } from "sonner";
+import { useAuth } from "./useAuth";
 
 export type RepeatMode = "off" | "all" | "one";
 
@@ -17,6 +18,7 @@ export function useAudioPlayer() {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
   const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
+  const { user } = useAuth();
 
   const buildShuffleOrder = useCallback((length: number, currentIdx: number) => {
     const indices = Array.from({ length }, (_, i) => i).filter(i => i !== currentIdx);
@@ -106,12 +108,12 @@ export function useAudioPlayer() {
     }
 
     setCurrentSong(songToPlay);
-    addToRecentlyPlayed(songToPlay);
+    addToRecentlyPlayedForUser(songToPlay, user?.id);
     audio.src = songToPlay.url;
     audio.play().catch((err) => {
       console.error(`[Player] Play error:`, err);
     });
-  }, [shuffle, buildShuffleOrder]);
+  }, [shuffle, buildShuffleOrder, user]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;

@@ -251,6 +251,111 @@ export function isFavorite(songId: string): boolean {
   return getFavorites().some((s) => s.id === songId);
 }
 
+// ─── Database-Backed Favorites & Recently Played ───
+
+export async function getFavoritesForUser(userId: string | undefined): Promise<Song[]> {
+  if (!userId) return getFavorites();
+  
+  try {
+    const { data, error } = await supabase
+      .from("favorites")
+      .select("song_data")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+      
+    if (error || !data) return getFavorites();
+    
+    // Save to local cache
+    const songs = data.map(d => d.song_data as unknown as Song);
+    localStorage.setItem("favorites", JSON.stringify(songs));
+    return songs;
+  } catch (err) {
+    return getFavorites();
+  }
+}
+
+export async function toggleFavoriteForUser(song: Song, userId: string | undefined): Promise<boolean> {
+  const isFav = toggleFavorite(song); // optimistic local update
+
+  if (!userId) return isFav;
+
+  try {
+    if (isFav) {
+      await supabase.from("favorites").insert({
+        user_id: userId,
+        song_id: song.id,
+        song_data: song as any
+      });
+    } else {
+      await supabase.from("favorites")
+        .delete()
+        .eq("user_id", userId)
+        .eq("song_id", song.id);
+    }
+  } catch (err) {
+    console.error("[Favorites] DB sync error", err);
+  }
+
+  return isFav;
+}
+
+export async function getRecentlyPlayedForUser(userId: string | undefined): Promise<Song[]> {
+  if (!userId) return getRecentlyPlayed();
+  
+  try {
+    const { data, error } = await supabase
+      .from("recently_played")
+      .select("song_data")
+      .eq("user_id", userId)
+      .order("played_at", { ascending: false })
+      .limit(20);
+      
+    if (error || !data) return getRecentlyPlayed();
+    
+    const songs = data.map(d => d.song_data as unknown as Song);
+    localStorage.setItem("recentlyPlayed", JSON.stringify(songs));
+    return songs;
+  } catch (err) {
+    return getRecentlyPlayed();
+  }
+}
+
+export async function addToRecentlyPlayedForUser(song: Song, userId: string | undefined) {
+  addToRecentlyPlayed(song); // optimistic local update
+  
+  if (!userId) return;
+
+  try {
+    // Delete existing to update timestamp
+    await supabase.from("recently_played")
+      .delete()
+      .eq("user_id", userId)
+      .eq("song_id", song.id);
+      
+    await supabase.from("recently_played").insert({
+      user_id: userId,
+      song_id: song.id,
+      song_data: song as any,
+      played_at: new Date().toISOString()
+    });
+    
+    // Keep only last 20
+    const { data } = await supabase.from("recently_played")
+      .select("id")
+      .eq("user_id", userId)
+      .order("played_at", { ascending: false })
+      .range(20, 100);
+      
+    if (data && data.length > 0) {
+      await supabase.from("recently_played")
+        .delete()
+        .in("id", data.map(d => d.id));
+    }
+  } catch (err) {
+    console.error("[Recent] DB sync error", err);
+  }
+}
+
 // ─── Database-Backed Playlists (User-Specific) ───
 
 import { supabase } from "@/integrations/supabase/client";
@@ -384,6 +489,38 @@ export async function deletePlaylistForUser(playlistId: string, userId: string |
     console.log("[Playlists] Playlist deleted from database successfully");
   } catch (err) {
     console.error("[Playlists] Error deleting playlist from database:", err);
+  }
+}
+
+/**
+ * Rename a playlist in both database and localStorage
+ */
+export async function renamePlaylistForUser(playlistId: string, newName: string, userId: string | undefined): Promise<void> {
+  // Update localStorage
+  const playlists = getPlaylists();
+  const playlist = playlists.find(p => p.id === playlistId);
+  if (playlist) {
+    playlist.name = newName;
+    savePlaylists(playlists);
+  }
+
+  // Update in database if user is authenticated
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from("playlists")
+      .update({ name: newName })
+      .eq("playlist_id", playlistId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[Playlists] Failed to rename in database:", error);
+    }
+  } catch (err) {
+    console.error("[Playlists] Error renaming playlist in database:", err);
   }
 }
 

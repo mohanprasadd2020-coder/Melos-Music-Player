@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Play, Loader2, Trash2, ListPlus, Heart } from "lucide-react";
-import { Song, Playlist, removeSongFromPlaylist, toggleFavorite, isFavorite, removeSongFromPlaylistForUser } from "@/lib/api";
+import { ArrowLeft, Play, Loader2, Trash2, ListPlus, Heart, Edit2, Check, X } from "lucide-react";
+import { Song, Playlist, removeSongFromPlaylist, toggleFavorite, isFavorite, removeSongFromPlaylistForUser, renamePlaylistForUser } from "@/lib/api";
 import SongRow from "./SongRow";
 import AddToPlaylistModal from "./AddToPlaylistModal";
 
@@ -32,10 +32,13 @@ export default function PlaylistDetail({
   const [playlist, setPlaylist] = useState<Playlist | null>(initialPlaylist);
   const [addMultiple, setAddMultiple] = useState<Song[] | null>(null);
   const [favorites, setFavorites] = useState(new Set<string>());
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
 
   useEffect(() => {
     if (initialPlaylist) {
       setPlaylist(initialPlaylist);
+      setEditName(initialPlaylist.name);
       const favs = new Set<string>();
       initialPlaylist.songs.forEach(song => {
         if (isFavorite(song.id)) favs.add(song.id);
@@ -54,6 +57,24 @@ export default function PlaylistDetail({
       onUpdatePlaylist(updatedPlaylist);
     } catch (err) {
       console.error("Error removing song:", err);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!playlist || !editName.trim() || editName === playlist.name) {
+      setIsEditing(false);
+      setEditName(playlist?.name || "");
+      return;
+    }
+    
+    try {
+      await renamePlaylistForUser(playlistId, editName, userId);
+      const updatedPlaylist = { ...playlist, name: editName };
+      setPlaylist(updatedPlaylist);
+      onUpdatePlaylist(updatedPlaylist);
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Error renaming playlist:", err);
     }
   };
 
@@ -115,9 +136,42 @@ export default function PlaylistDetail({
             <ListPlus className="w-12 h-12 text-muted-foreground" />
           </div>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Playlist</p>
-          <h1 className="text-xl sm:text-3xl font-bold text-foreground truncate">{playlist.name}</h1>
+          
+          {isEditing ? (
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                className="bg-secondary text-foreground px-2 py-1 rounded border border-primary/50 text-xl sm:text-3xl font-bold w-full max-w-sm outline-none"
+                autoFocus
+              />
+              <button onClick={handleRename} className="p-1.5 bg-primary/20 text-primary hover:bg-primary/30 rounded">
+                <Check size={18} />
+              </button>
+              <button 
+                onClick={() => { setIsEditing(false); setEditName(playlist.name); }} 
+                className="p-1.5 bg-destructive/20 text-destructive hover:bg-destructive/30 rounded"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-3xl font-bold text-foreground truncate">{playlist.name}</h1>
+              <button 
+                onClick={() => setIsEditing(true)} 
+                className="text-muted-foreground hover:text-foreground opacity-50 hover:opacity-100 transition-opacity"
+                title="Rename playlist"
+              >
+                <Edit2 size={16} />
+              </button>
+            </div>
+          )}
+
           {playlist.description && <p className="text-sm text-muted-foreground mt-1">{playlist.description}</p>}
           <p className="text-sm text-muted-foreground mt-0.5">{playlist.songs.length} songs</p>
           {playlist.songs.length > 0 && (

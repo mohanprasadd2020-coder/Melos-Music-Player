@@ -58,6 +58,70 @@ export type Database = {
           }
         ]
       }
+      favorites: {
+        Row: {
+          id: string
+          user_id: string
+          song_id: string
+          song_data: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          song_id: string
+          song_data: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          song_id?: string
+          song_data?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      recently_played: {
+        Row: {
+          id: string
+          user_id: string
+          song_id: string
+          song_data: Json
+          played_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          song_id: string
+          song_data: Json
+          played_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          song_id?: string
+          song_data?: Json
+          played_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recently_played_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

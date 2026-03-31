@@ -1,7 +1,8 @@
 import { Play, Heart } from "lucide-react";
-import { Song, isFavorite, toggleFavorite } from "@/lib/api";
+import { Song, isFavorite, toggleFavoriteForUser } from "@/lib/api";
 import { useState } from "react";
 import SongContextMenu from "./SongContextMenu";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SongCardProps {
   song: Song;
@@ -12,10 +13,13 @@ interface SongCardProps {
 
 export default function SongCard({ song, onPlay, onAddToPlaylist, onAddToQueue }: SongCardProps) {
   const [fav, setFav] = useState(isFavorite(song.id));
+  const { user } = useAuth();
 
-  const handleFav = (e: React.MouseEvent) => {
+  const handleFav = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const result = toggleFavorite(song);
+    // Optimistic UI update
+    setFav(!fav);
+    const result = await toggleFavoriteForUser(song, user?.id);
     setFav(result);
   };
 

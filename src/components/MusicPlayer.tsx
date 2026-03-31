@@ -7,6 +7,7 @@ import { RepeatMode } from "@/hooks/useAudioPlayer";
 import { useState } from "react";
 import QueuePanel from "./QueuePanel";
 import FullScreenPlayer from "./FullScreenPlayer";
+import { Slider } from "./ui/slider";
 
 interface PlayerProps {
   song: Song | null;
@@ -143,20 +144,13 @@ export default function MusicPlayer({
           {/* Seek bar - hidden on very small screens, shown on sm+ */}
           <div className="w-full hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-10 text-right tabular-nums">{fmt(currentTime)}</span>
-            <div className="flex-1 h-1 bg-secondary/70 rounded-full group cursor-pointer relative transition-all duration-200 hover:h-1.5"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const pct = (e.clientX - rect.left) / rect.width;
-                onSeek(pct * duration);
-              }}
-            >
-              <div
-                className="h-full bg-foreground rounded-full relative group-hover:bg-primary transition-colors duration-200"
-                style={{ width: `${progress}%` }}
-              >
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-foreground rounded-full opacity-0 group-hover:opacity-100 shadow-md-elevated transition-opacity duration-200" />
-              </div>
-            </div>
+            <Slider
+              value={[currentTime]}
+              max={duration || 100}
+              step={1}
+              onValueChange={([val]) => onSeek(val)}
+              className="flex-1 cursor-pointer"
+            />
             <span className="w-10 tabular-nums">{fmt(duration)}</span>
           </div>
           {/* Mobile progress bar (thin, no timestamps) */}
@@ -177,14 +171,14 @@ export default function MusicPlayer({
           <button onClick={() => onVolumeChange(volume === 0 ? 0.7 : 0)} className="text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-md p-1 hover:bg-secondary" title="Mute/unmute">
             <VolumeIcon size={18} />
           </button>
-          <div
-            className="w-20 h-1 bg-secondary rounded-full cursor-pointer group hover:h-1.5 transition-all duration-200"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              onVolumeChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
-            }}
-          >
-            <div className="h-full bg-foreground rounded-full group-hover:bg-primary transition-colors duration-200" style={{ width: `${volume * 100}%` }} />
+          <div className="w-24 group">
+            <Slider
+              value={[volume]}
+              max={1}
+              step={0.01}
+              onValueChange={([val]) => onVolumeChange(val)}
+              className="cursor-pointer"
+            />
           </div>
         </div>
       </footer>
