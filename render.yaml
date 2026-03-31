@@ -7,3 +7,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: VITE_SUPABASE_URL
+        value: https://bgcruwxsdjtgzgapetkd.supabase.co
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJnY3J1d3hzZGp0Z3pnYXBldGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1OTcxODIsImV4cCI6MjA5MDE3MzE4Mn0._XqND-NOjRZAFu95TFSIGdQsi2_cj4HRoBuXw-72lSw
+      - key: VITE_SUPABASE_PROJECT_ID
+        value: bgcruwxsdjtgzgapetkd
