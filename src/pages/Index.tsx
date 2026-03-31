@@ -282,6 +282,10 @@ export default function Index() {
             onBack={() => setView("albums")}
             onPlay={handlePlay}
             currentSongId={player.currentSong?.id}
+            userId={auth.user?.id}
+            playlists={userPlaylists}
+            onCreatePlaylist={handleCreatePlaylist}
+            onAddToPlaylist={handleAddToPlaylist}
           />
         );
 

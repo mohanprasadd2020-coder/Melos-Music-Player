@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Play, Loader2, Plus, ListPlus, Heart } from "lucide-react";
-import { Album, Song, getAlbumDetails, toggleFavorite, isFavorite } from "@/lib/api";
+import { Album, Song, Playlist, getAlbumDetails, toggleFavorite, isFavorite } from "@/lib/api";
 import SongRow from "./SongRow";
 import AddToPlaylistModal from "./AddToPlaylistModal";
 
@@ -9,9 +9,22 @@ interface AlbumDetailProps {
   onBack: () => void;
   onPlay: (songs: Song[], song: Song, index: number) => void;
   currentSongId?: string;
+  userId?: string;
+  playlists?: Playlist[];
+  onCreatePlaylist?: (name: string) => Promise<Playlist>;
+  onAddToPlaylist?: (playlistId: string, songs: Song[]) => Promise<boolean>;
 }
 
-export default function AlbumDetail({ albumId, onBack, onPlay, currentSongId }: AlbumDetailProps) {
+export default function AlbumDetail({ 
+  albumId, 
+  onBack, 
+  onPlay, 
+  currentSongId,
+  userId,
+  playlists = [],
+  onCreatePlaylist,
+  onAddToPlaylist
+}: AlbumDetailProps) {
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(true);
   const [addSong, setAddSong] = useState<Song | null>(null);
@@ -75,11 +88,25 @@ export default function AlbumDetail({ albumId, onBack, onPlay, currentSongId }: 
 
   return (
     <div>
-      {addSong && (
-        <AddToPlaylistModal song={addSong} onClose={() => setAddSong(null)} />
+      {addSong && onCreatePlaylist && onAddToPlaylist && (
+        <AddToPlaylistModal 
+          song={addSong} 
+          playlists={playlists}
+          userId={userId}
+          onClose={() => setAddSong(null)}
+          onCreatePlaylist={onCreatePlaylist}
+          onAddToPlaylist={onAddToPlaylist}
+        />
       )}
-      {addMultiple && (
-        <AddToPlaylistModal songs={addMultiple} onClose={() => setAddMultiple(null)} />
+      {addMultiple && onCreatePlaylist && onAddToPlaylist && (
+        <AddToPlaylistModal 
+          songs={addMultiple}
+          playlists={playlists}
+          userId={userId}
+          onClose={() => setAddMultiple(null)}
+          onCreatePlaylist={onCreatePlaylist}
+          onAddToPlaylist={onAddToPlaylist}
+        />
       )}
 
       {/* Header */}
