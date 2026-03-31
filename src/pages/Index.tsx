@@ -183,6 +183,7 @@ export default function Index() {
   };
 
   const openAlbum = (albumId: string) => {
+    console.log("[Index] Opening album with ID:", albumId);
     setSelectedAlbumId(albumId);
     setView("album-detail");
   };
@@ -192,11 +193,12 @@ export default function Index() {
     setView("playlist-detail");
   };
 
-  const handleCreatePlaylist = async () => {
-    if (!newPlaylistName.trim()) return;
+  const handleCreatePlaylist = async (nameOrEvent?: any) => {
+    const name = typeof nameOrEvent === "string" ? nameOrEvent : newPlaylistName;
+    if (!name.trim()) throw new Error("Name is required");
     try {
-      console.log("[Index] Creating playlist:", newPlaylistName, "for user:", auth.user?.id);
-      const newPlaylist = await createPlaylistForUser(newPlaylistName.trim(), auth.user?.id);
+      console.log("[Index] Creating playlist:", name, "for user:", auth.user?.id);
+      const newPlaylist = await createPlaylistForUser(name.trim(), auth.user?.id);
       setUserPlaylists(prev => [newPlaylist, ...prev]);
       
       // Verify playlist was saved to database
@@ -208,13 +210,34 @@ export default function Index() {
         }, 500);
       }
       
-      toast.success(`Playlist "${newPlaylistName}" created!`);
+      toast.success(`Playlist "${name}" created!`);
+      setNewPlaylistName("");
+      setShowCreatePlaylist(false);
+      return newPlaylist;
     } catch (err) {
       console.error("[Index] Error creating playlist:", err);
       toast.error("Failed to create playlist");
+      throw err;
     }
-    setNewPlaylistName("");
-    setShowCreatePlaylist(false);
+  };
+
+  const handleAddToPlaylist = async (playlistId: string, songs: Song[]) => {
+    let success = true;
+    for (const song of songs) {
+      const result = await addSongToPlaylistForUser(playlistId, song, auth.user?.id);
+      success = success && result;
+    }
+    if (success) {
+      // Update the playlist in our local state
+      setUserPlaylists(prev => 
+        prev.map(p => 
+          p.id === playlistId 
+            ? { ...p, songs: [...p.songs, ...songs.filter(s => !p.songs.some(ps => ps.id === s.id))] }
+            : p
+        )
+      );
+    }
+    return success;
   };
 
   const handleDeletePlaylist = async (id: string) => {
@@ -278,6 +301,7 @@ export default function Index() {
       case "album-detail":
         return (
           <AlbumDetail
+            key={selectedAlbumId}
             albumId={selectedAlbumId}
             onBack={() => setView("albums")}
             onPlay={handlePlay}
@@ -292,6 +316,7 @@ export default function Index() {
       case "playlist-detail":
         return (
           <PlaylistDetail
+            key={selectedPlaylistId}
             playlist={userPlaylists.find(p => p.id === selectedPlaylistId) || null}
             playlistId={selectedPlaylistId}
             userId={auth.user?.id}

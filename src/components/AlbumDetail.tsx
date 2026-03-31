@@ -32,16 +32,31 @@ export default function AlbumDetail({
   const [favorites, setFavorites] = useState(new Set<string>());
 
   useEffect(() => {
+    console.log("[AlbumDetail] Starting to load album with ID:", albumId);
     setLoading(true);
-    getAlbumDetails(albumId).then((a) => {
-      setAlbum(a);
-      const favs = new Set<string>();
-      a.songs?.forEach(song => {
-        if (isFavorite(song.id)) favs.add(song.id);
+    
+    getAlbumDetails(albumId)
+      .then((a) => {
+        console.log("[AlbumDetail] Album loaded successfully:", a);
+        if (!a) {
+          console.warn("[AlbumDetail] Album is null/undefined");
+          setAlbum(null);
+          setLoading(false);
+          return;
+        }
+        setAlbum(a);
+        const favs = new Set<string>();
+        a.songs?.forEach(song => {
+          if (isFavorite(song.id)) favs.add(song.id);
+        });
+        setFavorites(favs);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("[AlbumDetail] Error loading album:", err);
+        setAlbum(null);
+        setLoading(false);
       });
-      setFavorites(favs);
-      setLoading(false);
-    });
   }, [albumId]);
 
   const handlePlayAll = useCallback(() => {
@@ -86,6 +101,12 @@ export default function AlbumDetail({
     );
   }
 
+  const albumImage = album.image || "/placeholder.svg";
+  const albumName = album.name || "Unknown Album";
+  const albumArtist = album.artist || "Unknown Artist";
+  const albumYear = album.year || "";
+  const albumSongCount = album.songCount || 0;
+
   return (
     <div>
       {addSong && onCreatePlaylist && onAddToPlaylist && (
@@ -115,14 +136,15 @@ export default function AlbumDetail({
           <ArrowLeft size={20} />
         </button>
         <img
-          src={album.image || "/placeholder.svg"}
-          alt={album.name}
+          src={albumImage}
+          alt={albumName}
           className="w-32 h-32 sm:w-40 sm:h-40 rounded-lg shadow-xl object-cover shrink-0"
+          onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }}
         />
         <div className="min-w-0">
           <p className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Album</p>
-          <h1 className="text-xl sm:text-3xl font-bold text-foreground truncate">{album.name}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{album.artist} · {album.year} · {album.songCount} songs</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-foreground truncate">{albumName}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{albumArtist} {albumYear && `· ${albumYear}`} · {albumSongCount} songs</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
             <button
               onClick={handlePlayAll}
@@ -151,25 +173,31 @@ export default function AlbumDetail({
 
       {/* Song list */}
       <div className="space-y-0.5">
-        {album.songs?.map((song, i) => (
-          <div key={song.id} className="flex items-center">
-            <div className="flex-1">
-              <SongRow
-                song={song}
-                index={i}
-                isActive={song.id === currentSongId}
-                onPlay={() => onPlay(album.songs!, song, i)}
-              />
+        {album.songs && album.songs.length > 0 ? (
+          album.songs.map((song, i) => (
+            <div key={song.id} className="flex items-center">
+              <div className="flex-1">
+                <SongRow
+                  song={song}
+                  index={i}
+                  isActive={song.id === currentSongId}
+                  onPlay={() => onPlay(album.songs!, song, i)}
+                />
+              </div>
+              <button
+                onClick={() => setAddSong(song)}
+                className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors"
+                title="Add to playlist"
+              >
+                <ListPlus size={16} />
+              </button>
             </div>
-            <button
-              onClick={() => setAddSong(song)}
-              className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors"
-              title="Add to playlist"
-            >
-              <ListPlus size={16} />
-            </button>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground text-sm">No songs in this album</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
