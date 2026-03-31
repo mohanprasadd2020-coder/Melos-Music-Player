@@ -1,4 +1,4 @@
-# 🎵 JioSaavn Jam - Music Streaming Web Player
+# 🎵 Melos - Music Streaming Web Player
 
 A modern React-based music streaming application with playlist management, search, and playback controls.
 
