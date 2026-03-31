@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, Plus, Check } from "lucide-react";
-import { Song, Playlist, addSongToPlaylistForUser } from "@/lib/api";
+import { Song, Playlist } from "@/lib/api";
 import { toast } from "sonner";
 
 interface AddToPlaylistModalProps {
@@ -36,12 +36,10 @@ export default function AddToPlaylistModal({
       console.log("[AddToPlaylistModal] Creating new playlist:", newName);
       const newPlaylist = await onCreatePlaylist(newName.trim());
       
-      // Add songs to the new playlist - ensuring database sync
-      const songsAddedSuccessfully = await Promise.all(
-        songsToAdd.map(s => addSongToPlaylistForUser(newPlaylist.id, s, userId))
-      );
+      // Add songs to the new playlist
+      const success = await onAddToPlaylist(newPlaylist.id, songsToAdd);
       
-      if (songsAddedSuccessfully.every(s => s)) {
+      if (success) {
         console.log("[AddToPlaylistModal] All songs added to new playlist");
         setAdded(prev => new Set(prev).add(newPlaylist.id));
         toast.success(`Created playlist and added ${songsToAdd.length} song(s)`);
@@ -62,36 +60,16 @@ export default function AddToPlaylistModal({
       setIsLoading(true);
       console.log("[AddToPlaylistModal] Adding", songsToAdd.length, "song(s) to playlist:", playlistId);
       
-      // Add each song individually to ensure database sync
-      const results = await Promise.all(
-        songsToAdd.map(s => addSongToPlaylistForUser(playlistId, s, userId))
-      );
+      // Call parent's onAddToPlaylist callback first
+      const success = await onAddToPlaylist(playlistId, songsToAdd);
       
-      if (results.some(r => r)) {
-        const successCount = results.filter(r => r).length;
-        console.log("[AddToPlaylistModal] Successfully added", successCount, "song(s) to database");
-        const duplicateCount = songsToAdd.length - successCount;
-        
+      if (success) {
+        console.log("[AddToPlaylistModal] Successfully added songs to playlist");
         setAdded(prev => new Set(prev).add(playlistId));
-        
-        // Verify data was saved
-        if (userId) {
-          setTimeout(async () => {
-            try {
-              const { verifyPlaylistInDatabase } = await import("@/lib/api");
-              const verified = await verifyPlaylistInDatabase(playlistId, userId);
-              console.log("[AddToPlaylistModal] Data persistence verified:", verified);
-            } catch (err) {
-              console.error("[AddToPlaylistModal] Verification error:", err);
-            }
-          }, 800);
-        }
-        
-        if (duplicateCount > 0) {
-          toast.success(`Added ${successCount} song(s) (${duplicateCount} already in playlist)`);
-        } else {
-          toast.success(`Added ${successCount} song(s) to playlist`);
-        }
+        toast.success(`Added ${songsToAdd.length} song(s) to playlist`);
+      } else {
+        console.log("[AddToPlaylistModal] No songs were added (may have been duplicates)");
+        toast.info("Songs already in this playlist");
       }
     } catch (err) {
       console.error("[AddToPlaylistModal] Error adding to playlist:", err);
