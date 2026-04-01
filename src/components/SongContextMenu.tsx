@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   MoreHorizontal, ListPlus, Heart, ListMusic, Share2,
   Disc3, User, EyeOff, Music2,
@@ -77,7 +78,7 @@ export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, o
         <MoreHorizontal size={18} />
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           ref={menuRef}
           onClick={(e) => e.stopPropagation()}
@@ -137,7 +138,8 @@ export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, o
             label="Share"
             onClick={handleShare}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -32,11 +32,24 @@ export default function SongCard({ song, onPlay, onAddToPlaylist, onAddToQueue }
         <img
           src={song.image || "/placeholder.svg"}
           alt={song.name}
-          className="w-full aspect-square object-cover rounded-md shadow-md-elevated"
+          className="w-full aspect-square object-cover rounded-md shadow-md-elevated relative z-[1]"
           loading="lazy"
         />
+        {onAddToPlaylist && (
+          <div 
+            className="absolute top-2 right-2 z-10 flex items-center justify-center bg-black/40 rounded-full hover:bg-black/60 transition-colors backdrop-blur-sm"
+            onClick={(e) => e.stopPropagation()}
+            style={{ zIndex: 10 }}
+          >
+            <SongContextMenu
+              song={song}
+              onAddToPlaylist={onAddToPlaylist}
+              onAddToQueue={onAddToQueue}
+            />
+          </div>
+        )}
         <button
-          className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 shadow-lg-card hover:scale-110"
+          className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 shadow-lg-card hover:scale-110 z-10"
           onClick={onPlay}
           title="Play"
         >
@@ -54,15 +67,6 @@ export default function SongCard({ song, onPlay, onAddToPlaylist, onAddToQueue }
           >
             <Heart size={14} fill={fav ? "currentColor" : "none"} />
           </button>
-          {onAddToPlaylist && (
-            <div onClick={(e) => e.stopPropagation()}>
-              <SongContextMenu
-                song={song}
-                onAddToPlaylist={onAddToPlaylist}
-                onAddToQueue={onAddToQueue}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>
