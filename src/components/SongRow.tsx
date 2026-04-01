@@ -10,6 +10,7 @@ interface SongRowProps {
   onPlay: () => void;
   onAddToPlaylist?: (song: Song) => void;
   onAddToQueue?: (song: Song) => void;
+  onRemoveFromPlaylist?: (songId: string) => void;
 }
 
 function formatTime(s: number) {
@@ -18,7 +19,7 @@ function formatTime(s: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-export default function SongRow({ song, index, isActive, onPlay, onAddToPlaylist, onAddToQueue }: SongRowProps) {
+export default function SongRow({ song, index, isActive, onPlay, onAddToPlaylist, onAddToQueue, onRemoveFromPlaylist }: SongRowProps) {
   const [fav, setFav] = useState(isFavorite(song.id));
 
   return (
@@ -52,12 +53,13 @@ export default function SongRow({ song, index, isActive, onPlay, onAddToPlaylist
       <span className="text-xs text-muted-foreground w-10 text-right hidden sm:block">
         {song.duration ? formatTime(song.duration) : "--:--"}
       </span>
-      {onAddToPlaylist && (
+      {(onAddToPlaylist || onRemoveFromPlaylist || onAddToQueue) && (
         <div onClick={(e) => e.stopPropagation()} className="shrink-0">
           <SongContextMenu
             song={song}
             onAddToPlaylist={onAddToPlaylist}
             onAddToQueue={onAddToQueue}
+            onRemoveFromPlaylist={onRemoveFromPlaylist}
           />
         </div>
       )}

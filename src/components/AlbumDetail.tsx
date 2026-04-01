@@ -13,17 +13,19 @@ interface AlbumDetailProps {
   playlists?: Playlist[];
   onCreatePlaylist?: (name: string) => Promise<Playlist>;
   onAddToPlaylist?: (playlistId: string, songs: Song[]) => Promise<boolean>;
+  onAddToQueue?: (song: Song) => void;
 }
 
-export default function AlbumDetail({ 
-  albumId, 
-  onBack, 
-  onPlay, 
+export default function AlbumDetail({
+  albumId,
+  onBack,
+  onPlay,
   currentSongId,
   userId,
   playlists = [],
   onCreatePlaylist,
-  onAddToPlaylist
+  onAddToPlaylist,
+  onAddToQueue
 }: AlbumDetailProps) {
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(true);
@@ -182,15 +184,10 @@ export default function AlbumDetail({
                   index={i}
                   isActive={song.id === currentSongId}
                   onPlay={() => onPlay(album.songs!, song, i)}
+                  onAddToPlaylist={() => setAddSong(song)}
+                  onAddToQueue={onAddToQueue}
                 />
               </div>
-              <button
-                onClick={() => setAddSong(song)}
-                className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors"
-                title="Add to playlist"
-              >
-                <ListPlus size={16} />
-              </button>
             </div>
           ))
         ) : (

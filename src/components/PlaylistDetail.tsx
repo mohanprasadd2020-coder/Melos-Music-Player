@@ -14,19 +14,21 @@ interface PlaylistDetailProps {
   onUpdatePlaylist: (updatedPlaylist: Playlist) => void;
   onCreatePlaylist?: (name: string) => Promise<Playlist>;
   onAddToPlaylist?: (playlistId: string, songs: Song[]) => Promise<boolean>;
+  onAddToQueue?: (song: Song) => void;
   currentSongId?: string;
 }
 
-export default function PlaylistDetail({ 
+export default function PlaylistDetail({
   playlist: initialPlaylist,
-  playlistId, 
+  playlistId,
   userId,
   allPlaylists,
-  onBack, 
+  onBack,
   onPlay,
   onUpdatePlaylist,
   onCreatePlaylist,
   onAddToPlaylist,
+  onAddToQueue,
   currentSongId 
 }: PlaylistDetailProps) {
   const [playlist, setPlaylist] = useState<Playlist | null>(initialPlaylist);
@@ -217,15 +219,10 @@ export default function PlaylistDetail({
                   index={i}
                   isActive={song.id === currentSongId}
                   onPlay={() => onPlay(playlist.songs, song, i)}
+                  onRemoveFromPlaylist={handleRemoveSong}
+                  onAddToQueue={onAddToQueue}
                 />
               </div>
-              <button
-                onClick={() => handleRemoveSong(song.id)}
-                className="shrink-0 p-2 text-muted-foreground hover:text-destructive transition-colors"
-                title="Remove from playlist"
-              >
-                <Trash2 size={14} />
-              </button>
             </div>
           ))}
         </div>

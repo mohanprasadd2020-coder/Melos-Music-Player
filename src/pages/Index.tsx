@@ -120,9 +120,9 @@ export default function Index() {
   };
 
   const handleAddToQueue = useCallback((song: Song) => {
-    // Simple add-to-queue: just toast for now since queue is managed by playlist
-    toast.success(`"${song.name}" will play next`);
-  }, []);
+    player.enqueue(song);
+    toast.success(`"${song.name}" added to queue`);
+  }, [player]);
 
   // Load user playlists, favorites, and recent on login or logout
   useEffect(() => {
@@ -315,6 +315,7 @@ export default function Index() {
             playlists={userPlaylists}
             onCreatePlaylist={handleCreatePlaylist}
             onAddToPlaylist={handleAddToPlaylist}
+            onAddToQueue={handleAddToQueue}
           />
         );
 
@@ -356,6 +357,7 @@ export default function Index() {
               }
               return success;
             }}
+            onAddToQueue={handleAddToQueue}
             currentSongId={player.currentSong?.id}
           />
         );

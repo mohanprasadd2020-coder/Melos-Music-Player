@@ -2,18 +2,19 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   MoreHorizontal, ListPlus, Heart, ListMusic, Share2,
-  Disc3, User, EyeOff, Music2,
+  Disc3, User, EyeOff, Music2, Trash2
 } from "lucide-react";
 import { Song, isFavorite, toggleFavorite } from "@/lib/api";
 
 interface SongContextMenuProps {
   song: Song;
-  onAddToPlaylist: (song: Song) => void;
+  onAddToPlaylist?: (song: Song) => void;
   onAddToQueue?: (song: Song) => void;
   onGoToAlbum?: (albumName: string) => void;
+  onRemoveFromPlaylist?: (songId: string) => void;
 }
 
-export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, onGoToAlbum }: SongContextMenuProps) {
+export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, onGoToAlbum, onRemoveFromPlaylist }: SongContextMenuProps) {
   const [open, setOpen] = useState(false);
   const [fav, setFav] = useState(isFavorite(song.id));
   const menuRef = useRef<HTMLDivElement>(null);
@@ -90,11 +91,20 @@ export default function SongContextMenu({ song, onAddToPlaylist, onAddToQueue, o
             left: menuPos.left,
           }}
         >
-          <MenuItem
-            icon={<ListPlus size={16} />}
-            label="Add to playlist"
-            onClick={() => handleAction(() => onAddToPlaylist(song))}
-          />
+          {onAddToPlaylist && (
+            <MenuItem
+              icon={<ListPlus size={16} />}
+              label="Add to playlist"
+              onClick={() => handleAction(() => onAddToPlaylist(song))}
+            />
+          )}
+          {onRemoveFromPlaylist && (
+            <MenuItem
+              icon={<Trash2 size={16} className="text-destructive" />}
+              label="Remove from playlist"
+              onClick={() => handleAction(() => onRemoveFromPlaylist(song.id))}
+            />
+          )}
           <MenuItem
             icon={<Heart size={16} fill={fav ? "currentColor" : "none"} />}
             label={fav ? "Remove from Liked Songs" : "Save to your Liked Songs"}
