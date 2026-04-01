@@ -764,6 +764,8 @@ export default function Index() {
         onToggleShuffle={player.toggleShuffle}
         onToggleRepeat={player.toggleRepeat}
         onPlayFromQueue={player.playFromQueue}
+        onReorderQueue={player.reorderQueue}
+        onRemoveFromQueue={player.removeFromQueue}
       />
     </div>
   );

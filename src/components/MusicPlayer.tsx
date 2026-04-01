@@ -27,6 +27,8 @@ interface PlayerProps {
   onToggleShuffle: () => void;
   onToggleRepeat: () => void;
   onPlayFromQueue: (index: number) => void;
+  onReorderQueue: (fromIndex: number, toIndex: number) => void;
+  onRemoveFromQueue: (index: number) => void;
 }
 
 function fmt(s: number) {
@@ -40,7 +42,7 @@ export default function MusicPlayer({
   song, isPlaying, currentTime, duration, volume,
   shuffle, repeat, queue, queueIndex,
   onTogglePlay, onNext, onPrev, onSeek, onVolumeChange,
-  onToggleShuffle, onToggleRepeat, onPlayFromQueue,
+  onToggleShuffle, onToggleRepeat, onPlayFromQueue, onReorderQueue, onRemoveFromQueue,
 }: PlayerProps) {
   const [showQueue, setShowQueue] = useState(false);
   const [showFullScreen, setShowFullScreen] = useState(false);
@@ -79,6 +81,8 @@ export default function MusicPlayer({
           onToggleShuffle={onToggleShuffle}
           onToggleRepeat={onToggleRepeat}
           onPlayFromQueue={onPlayFromQueue}
+          onReorderQueue={onReorderQueue}
+          onRemoveFromQueue={onRemoveFromQueue}
           onClose={() => setShowFullScreen(false)}
         />
       )}
@@ -90,6 +94,8 @@ export default function MusicPlayer({
         queue={queue}
         queueIndex={queueIndex}
         onPlayFromQueue={onPlayFromQueue}
+        onReorderQueue={onReorderQueue}
+        onRemoveFromQueue={onRemoveFromQueue}
       />
 
       {/* Mini player bar */}

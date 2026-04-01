@@ -208,9 +208,61 @@ export function useAudioPlayer() {
     if (queue.length === 0) {
       playSong(song, [song], 0);
     } else {
-      setQueue(prev => [...prev, song]);
+      // Add song right after the currently playing song (queueIndex + 1)
+      setQueue(prev => {
+        const newQueue = [...prev];
+        newQueue.splice(queueIndex + 1, 0, song);
+        return newQueue;
+      });
     }
-  }, [queue, playSong]);
+  }, [queue, queueIndex, playSong]);
+
+  const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
+    setQueue(prev => {
+      const newQueue = [...prev];
+      const [removed] = newQueue.splice(fromIndex, 1);
+      newQueue.splice(toIndex, 0, removed);
+
+      // Update queueIndex if the currently playing song moved
+      if (fromIndex === queueIndex) {
+        setQueueIndex(toIndex);
+      } else if (fromIndex < queueIndex && toIndex >= queueIndex) {
+        // Current song index decreased as songs moved before it
+        setQueueIndex(queueIndex - 1);
+      } else if (fromIndex > queueIndex && toIndex <= queueIndex) {
+        // Current song index increased as songs moved before it
+        setQueueIndex(queueIndex + 1);
+      }
+
+      return newQueue;
+    });
+  }, [queueIndex]);
+
+  const removeFromQueue = useCallback((index: number) => {
+    setQueue(prev => {
+      const newQueue = prev.filter((_, i) => i !== index);
+      
+      // Update queueIndex after removal
+      if (index === queueIndex) {
+        // Current song was removed, move to next
+        if (index < newQueue.length) {
+          // Play next song
+          setQueueIndex(index);
+        } else if (newQueue.length > 0) {
+          // Play previous song if removed was last
+          setQueueIndex(newQueue.length - 1);
+        } else {
+          // Queue is empty
+          setQueueIndex(-1);
+        }
+      } else if (index < queueIndex) {
+        // A song before current was removed, adjust index
+        setQueueIndex(queueIndex - 1);
+      }
+      
+      return newQueue;
+    });
+  }, [queueIndex]);
 
   return {
     currentSong,
@@ -232,5 +284,7 @@ export function useAudioPlayer() {
     toggleRepeat,
     playFromQueue,
     enqueue,
+    reorderQueue,
+    removeFromQueue,
   };
 }

@@ -1,6 +1,6 @@
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Volume1,
-  Shuffle, Repeat, Repeat1, ListMusic, ChevronDown, Heart, Music2, Loader2,
+  Shuffle, Repeat, Repeat1, ListMusic, ChevronDown, Heart, Music2, Loader2, GripVertical,
 } from "lucide-react";
 import { Song, isFavorite, toggleFavorite } from "@/lib/api";
 import { RepeatMode } from "@/hooks/useAudioPlayer";
@@ -26,6 +26,8 @@ interface FullScreenPlayerProps {
   onToggleShuffle: () => void;
   onToggleRepeat: () => void;
   onPlayFromQueue: (index: number) => void;
+  onReorderQueue: (fromIndex: number, toIndex: number) => void;
+  onRemoveFromQueue: (index: number) => void;
   onClose: () => void;
 }
 
@@ -42,7 +44,7 @@ export default function FullScreenPlayer({
   song, isPlaying, currentTime, duration, volume,
   shuffle, repeat, queue, queueIndex,
   onTogglePlay, onNext, onPrev, onSeek, onVolumeChange,
-  onToggleShuffle, onToggleRepeat, onPlayFromQueue, onClose,
+  onToggleShuffle, onToggleRepeat, onPlayFromQueue, onReorderQueue, onRemoveFromQueue, onClose,
 }: FullScreenPlayerProps) {
   const [tab, setTab] = useState<Tab>("player");
   const [lyrics, setLyrics] = useState<string | null>(null);
@@ -117,6 +119,8 @@ export default function FullScreenPlayer({
               queue={queue}
               queueIndex={queueIndex}
               onPlayFromQueue={(i) => { onPlayFromQueue(i); setTab("player"); }}
+              onReorderQueue={onReorderQueue}
+              onRemoveFromQueue={onRemoveFromQueue}
             />
           </div>
         ) : tab === "lyrics" ? (
@@ -234,13 +238,47 @@ export default function FullScreenPlayer({
   );
 }
 
-function FullScreenQueue({ queue, queueIndex, onPlayFromQueue }: {
+function FullScreenQueue({ queue, queueIndex, onPlayFromQueue, onReorderQueue, onRemoveFromQueue }: {
   queue: Song[];
   queueIndex: number;
   onPlayFromQueue: (i: number) => void;
+  onReorderQueue: (fromIndex: number, toIndex: number) => void;
+  onRemoveFromQueue: (index: number) => void;
 }) {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   const currentSong = queue[queueIndex];
   const upcoming = queue.slice(queueIndex + 1);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    // Dragging songs from the upcoming list, which start at queueIndex + 1
+    setDraggedIndex(queueIndex + 1 + index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDragEnter = (index: number) => {
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, toIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== toIndex) {
+      onReorderQueue(draggedIndex, queueIndex + 1 + toIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
 
   return (
     <div>
@@ -261,19 +299,44 @@ function FullScreenQueue({ queue, queueIndex, onPlayFromQueue }: {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Next Up</p>
           {upcoming.map((song, i) => {
             const realIndex = queueIndex + 1 + i;
+            const isDragged = draggedIndex === realIndex;
+            const isDragOver = dragOverIndex === i;
             return (
-              <button
+              <div
                 key={`${song.id}-${realIndex}`}
-                onClick={() => onPlayFromQueue(realIndex)}
-                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors text-left group"
+                draggable
+                onDragStart={(e) => handleDragStart(e, i)}
+                onDragOver={handleDragOver}
+                onDragEnter={() => handleDragEnter(i)}
+                onDrop={(e) => handleDrop(e, i)}
+                onDragEnd={handleDragEnd}
+                className={`w-full flex items-center gap-2 p-2 rounded-lg transition-all cursor-grab active:cursor-grabbing group ${
+                  isDragged ? "opacity-50 bg-accent/30" : isDragOver ? "bg-accent/50" : "hover:bg-accent/50"
+                }`}
               >
-                <span className="w-6 text-xs text-muted-foreground text-center">{i + 1}</span>
-                <img src={song.image || "/placeholder.svg"} alt="" className="w-10 h-10 rounded-lg object-cover" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground truncate">{song.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
-                </div>
-              </button>
+                <GripVertical size={16} className="text-muted-foreground flex-shrink-0" />
+                <button
+                  onClick={() => onPlayFromQueue(realIndex)}
+                  className="flex-1 flex items-center gap-3 text-left"
+                >
+                  <span className="w-6 text-xs text-muted-foreground text-center">{i + 1}</span>
+                  <img src={song.image || "/placeholder.svg"} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground truncate">{song.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveFromQueue(realIndex);
+                  }}
+                  className="text-muted-foreground hover:text-foreground hover:bg-destructive/20 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Remove from queue"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             );
           })}
         </div>
