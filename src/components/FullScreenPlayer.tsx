@@ -1,6 +1,6 @@
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Volume1,
-  Shuffle, Repeat, Repeat1, ListMusic, ChevronDown, Heart, Music2, Loader2, GripVertical,
+  Shuffle, Repeat, Repeat1, ListMusic, ChevronDown, Heart, Music2, Loader2, GripVertical, X,
 } from "lucide-react";
 import { Song, isFavorite, toggleFavorite } from "@/lib/api";
 import { RepeatMode } from "@/hooks/useAudioPlayer";
@@ -85,7 +85,7 @@ export default function FullScreenPlayer({
       <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col h-full">
+      <div className="relative z-10 flex flex-col h-full flex-1 min-h-0 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-8 py-4">
           <button
@@ -114,7 +114,7 @@ export default function FullScreenPlayer({
         </div>
 
         {tab === "queue" ? (
-          <div className="flex-1 overflow-y-auto scrollbar-thin px-4 sm:px-8 pb-4">
+          <div className="flex-1 overflow-y-auto scrollbar-thin px-3 sm:px-8 py-4 min-h-0">
             <FullScreenQueue
               queue={queue}
               queueIndex={queueIndex}
@@ -214,8 +214,8 @@ export default function FullScreenPlayer({
             </button>
           </div>
 
-          {/* Volume */}
-          <div className="flex items-center gap-3 justify-center">
+          {/* Volume and Queue */}
+          <div className="flex items-center gap-4 justify-center">
             <button
               onClick={() => onVolumeChange(volume === 0 ? 0.7 : 0)}
               className="text-muted-foreground hover:text-foreground transition-colors"
@@ -231,6 +231,13 @@ export default function FullScreenPlayer({
                 className="cursor-pointer"
               />
             </div>
+            <button
+              onClick={() => setTab("queue")}
+              className="text-muted-foreground hover:text-primary hover:scale-110 transition-all"
+              title="Queue"
+            >
+              <ListMusic size={18} />
+            </button>
           </div>
         </div>
       </div>
@@ -248,12 +255,14 @@ function FullScreenQueue({ queue, queueIndex, onPlayFromQueue, onReorderQueue, o
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const currentSong = queue[queueIndex];
-  const upcoming = queue.slice(queueIndex + 1);
+  // Handle when no song is playing (queueIndex is -1)
+  const currentSong = queueIndex >= 0 ? queue[queueIndex] : null;
+  const upcoming = queueIndex >= 0 ? queue.slice(queueIndex + 1) : queue;
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    // Dragging songs from the upcoming list, which start at queueIndex + 1
-    setDraggedIndex(queueIndex + 1 + index);
+    // Dragging songs from the upcoming list
+    const dragIndex = queueIndex >= 0 ? (queueIndex + 1 + index) : index;
+    setDraggedIndex(dragIndex);
     e.dataTransfer.effectAllowed = "move";
   };
 
@@ -269,7 +278,8 @@ function FullScreenQueue({ queue, queueIndex, onPlayFromQueue, onReorderQueue, o
   const handleDrop = (e: React.DragEvent, toIndex: number) => {
     e.preventDefault();
     if (draggedIndex !== null && draggedIndex !== toIndex) {
-      onReorderQueue(draggedIndex, queueIndex + 1 + toIndex);
+      const dropIndex = queueIndex >= 0 ? (queueIndex + 1 + toIndex) : toIndex;
+      onReorderQueue(draggedIndex, dropIndex);
     }
     setDraggedIndex(null);
     setDragOverIndex(null);
@@ -281,67 +291,85 @@ function FullScreenQueue({ queue, queueIndex, onPlayFromQueue, onReorderQueue, o
   };
 
   return (
-    <div>
+    <div className="w-full">
+      <div className="text-white bg-red-500 p-4 mb-4 rounded">
+        <p>Queue length: {queue.length}</p>
+        <p>QueueIndex: {queueIndex}</p>
+        <p>CurrentSong: {currentSong?.name || "None"}</p>
+        <p>Upcoming: {upcoming.length}</p>
+      </div>
       {currentSong && (
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Now Playing</p>
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-accent">
-            <img src={currentSong.image || "/placeholder.svg"} alt="" className="w-12 h-12 rounded-lg object-cover" />
+        <div className="mb-4 sm:mb-6">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 sm:mb-3">Now Playing</p>
+          <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-accent">
+            <img src={currentSong.image || "/placeholder.svg"} alt="" className="w-12 sm:w-14 h-12 sm:h-14 rounded-lg object-cover" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-primary truncate">{currentSong.name}</p>
+              <p className="text-sm sm:text-base font-semibold text-primary truncate">{currentSong.name}</p>
               <p className="text-xs text-muted-foreground truncate">{currentSong.artist}</p>
             </div>
           </div>
         </div>
       )}
       {upcoming.length > 0 ? (
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Next Up</p>
-          {upcoming.map((song, i) => {
-            const realIndex = queueIndex + 1 + i;
-            const isDragged = draggedIndex === realIndex;
-            const isDragOver = dragOverIndex === i;
-            return (
-              <div
-                key={`${song.id}-${realIndex}`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, i)}
-                onDragOver={handleDragOver}
-                onDragEnter={() => handleDragEnter(i)}
-                onDrop={(e) => handleDrop(e, i)}
-                onDragEnd={handleDragEnd}
-                className={`w-full flex items-center gap-2 p-2 rounded-lg transition-all cursor-grab active:cursor-grabbing group ${
-                  isDragged ? "opacity-50 bg-accent/30" : isDragOver ? "bg-accent/50" : "hover:bg-accent/50"
-                }`}
-              >
-                <GripVertical size={16} className="text-muted-foreground flex-shrink-0" />
-                <button
-                  onClick={() => onPlayFromQueue(realIndex)}
-                  className="flex-1 flex items-center gap-3 text-left"
+        <div className="w-full">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 sm:mb-3">Next Up</p>
+          <div className="space-y-1.5 sm:space-y-2">
+            {upcoming.map((song, i) => {
+              const realIndex = queueIndex >= 0 ? (queueIndex + 1 + i) : i;
+              const isDragged = draggedIndex === realIndex;
+              const isDragOver = dragOverIndex === i;
+              return (
+                <div
+                  key={`${song.id}-${realIndex}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, i)}
+                  onDragOver={handleDragOver}
+                  onDragEnter={() => handleDragEnter(i)}
+                  onDrop={(e) => handleDrop(e, i)}
+                  onDragEnd={handleDragEnd}
+                  className={`w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg transition-all cursor-grab active:cursor-grabbing group ${
+                    isDragged ? "opacity-50 bg-accent/30" : isDragOver ? "bg-accent/50" : "hover:bg-accent/50"
+                  }`}
                 >
-                  <span className="w-6 text-xs text-muted-foreground text-center">{i + 1}</span>
-                  <img src={song.image || "/placeholder.svg"} alt="" className="w-10 h-10 rounded-lg object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-foreground truncate">{song.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
-                  </div>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveFromQueue(realIndex);
-                  }}
-                  className="text-muted-foreground hover:text-foreground hover:bg-destructive/20 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Remove from queue"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            );
-          })}
+                  <GripVertical size={14} className="text-muted-foreground flex-shrink-0 sm:block hidden" />
+                  <button
+                    onClick={() => onPlayFromQueue(realIndex)}
+                    className="flex-1 flex items-center gap-2 sm:gap-3 text-left min-w-0"
+                  >
+                    <span className="w-5 text-xs text-muted-foreground text-center flex-shrink-0">{i + 1}</span>
+                    <img src={song.image || "/placeholder.svg"} alt="" className="w-9 sm:w-10 h-9 sm:h-10 rounded-lg object-cover flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-foreground truncate">{song.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveFromQueue(realIndex);
+                    }}
+                    className="text-muted-foreground hover:text-foreground hover:bg-destructive/20 rounded p-1 transition-colors sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0"
+                    title="Remove from queue"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-8">No more songs in queue</p>
+        <div className="w-full flex flex-col items-center justify-center py-12 sm:py-16 gap-4 bg-secondary/20 rounded-lg p-6">
+          <Music2 className="w-14 sm:w-16 h-14 sm:h-16 text-muted-foreground opacity-60" />
+          <div className="text-center">
+            <p className="text-base sm:text-lg font-semibold text-foreground mb-2">
+              {currentSong ? "No more songs in queue" : "Queue is empty"}
+            </p>
+            <p className="text-sm text-muted-foreground px-4 leading-relaxed max-w-sm">
+              {currentSong ? "You've reached the end of the queue." : "Play a song to start building your queue."}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

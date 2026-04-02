@@ -18,12 +18,14 @@ export default function QueuePanel({ open, onClose, queue, queueIndex, onPlayFro
 
   if (!open) return null;
 
-  const upcoming = queue.slice(queueIndex + 1);
-  const currentSong = queue[queueIndex];
+  // Handle when no song is playing (queueIndex is -1)
+  const currentSong = queueIndex >= 0 ? queue[queueIndex] : null;
+  const upcoming = queueIndex >= 0 ? queue.slice(queueIndex + 1) : queue;
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    // Dragging songs from the upcoming list, which start at queueIndex + 1
-    setDraggedIndex(queueIndex + 1 + index);
+    // Dragging songs from the upcoming list
+    const dragIndex = queueIndex >= 0 ? (queueIndex + 1 + index) : index;
+    setDraggedIndex(dragIndex);
     e.dataTransfer.effectAllowed = "move";
   };
 
@@ -39,7 +41,8 @@ export default function QueuePanel({ open, onClose, queue, queueIndex, onPlayFro
   const handleDrop = (e: React.DragEvent, toIndex: number) => {
     e.preventDefault();
     if (draggedIndex !== null && draggedIndex !== toIndex) {
-      onReorderQueue(draggedIndex, queueIndex + 1 + toIndex);
+      const dropIndex = queueIndex >= 0 ? (queueIndex + 1 + toIndex) : toIndex;
+      onReorderQueue(draggedIndex, dropIndex);
     }
     setDraggedIndex(null);
     setDragOverIndex(null);
@@ -78,7 +81,7 @@ export default function QueuePanel({ open, onClose, queue, queueIndex, onPlayFro
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2">Next Up</p>
             {upcoming.map((song, i) => {
-              const realIndex = queueIndex + 1 + i;
+              const realIndex = queueIndex >= 0 ? (queueIndex + 1 + i) : i;
               const isDragged = draggedIndex === realIndex;
               const isDragOver = dragOverIndex === i;
               return (
@@ -124,7 +127,12 @@ export default function QueuePanel({ open, onClose, queue, queueIndex, onPlayFro
             })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-8">No more songs in queue</p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <Music size={28} className="text-muted-foreground" />
+            <p className="text-sm text-muted-foreground text-center px-4 leading-relaxed">
+              {currentSong ? "No more songs in queue" : "Queue is empty. Play a song to add it here."}
+            </p>
+          </div>
         )}
       </div>
     </div>

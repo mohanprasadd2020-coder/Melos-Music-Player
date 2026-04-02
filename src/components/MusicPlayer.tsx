@@ -165,19 +165,21 @@ export default function MusicPlayer({
           </div>
         </div>
 
-        {/* Right controls — desktop only */}
-        <div className="hidden sm:flex items-center gap-2 w-[160px] shrink-0 justify-end">
+        {/* Right controls — all screens */}
+        <div className="flex items-center gap-1 sm:gap-2 w-auto sm:w-[160px] shrink-0 sm:justify-end">
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={`transition-colors duration-200 rounded-md p-1 hover:bg-secondary ${showQueue ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
             title="Queue"
           >
-            <ListMusic size={18} />
+            <ListMusic size={16} className="sm:hidden" />
+            <ListMusic size={18} className="hidden sm:block" />
           </button>
           <button onClick={() => onVolumeChange(volume === 0 ? 0.7 : 0)} className="text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-md p-1 hover:bg-secondary" title="Mute/unmute">
-            <VolumeIcon size={18} />
+            <VolumeIcon size={16} className="sm:hidden" />
+            <VolumeIcon size={18} className="hidden sm:block" />
           </button>
-          <div className="w-24 group">
+          <div className="w-16 sm:w-24 group hidden sm:block">
             <Slider
               value={[volume]}
               max={1}
