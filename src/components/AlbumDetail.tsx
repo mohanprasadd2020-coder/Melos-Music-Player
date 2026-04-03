@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Play, Loader2, Plus, ListPlus, Heart } from "lucide-react";
-import { Album, Song, Playlist, getAlbumDetails, toggleFavorite, isFavorite } from "@/lib/api";
+import { Album, Song, Playlist, getAlbumDetails, toggleFavoriteForUser, isFavorite } from "@/lib/api";
 import SongRow from "./SongRow";
 import AddToPlaylistModal from "./AddToPlaylistModal";
 
@@ -67,18 +67,18 @@ export default function AlbumDetail({
     }
   }, [album, onPlay]);
 
-  const handleAddAllToFavorites = useCallback(() => {
+  const handleAddAllToFavorites = useCallback(async () => {
     if (album?.songs) {
       const newFavs = new Set(favorites);
-      album.songs.forEach(song => {
+      for (const song of album.songs) {
         if (!isFavorite(song.id)) {
-          toggleFavorite(song);
+          await toggleFavoriteForUser(song, userId);
           newFavs.add(song.id);
         }
-      });
+      }
       setFavorites(newFavs);
     }
-  }, [album, favorites]);
+  }, [album, favorites, userId]);
 
   const handleAddAllToPlaylist = useCallback(() => {
     if (album?.songs && album.songs.length > 0) {
@@ -186,6 +186,7 @@ export default function AlbumDetail({
                   onPlay={() => onPlay(album.songs!, song, i)}
                   onAddToPlaylist={() => setAddSong(song)}
                   onAddToQueue={onAddToQueue}
+                  userId={userId}
                 />
               </div>
             </div>

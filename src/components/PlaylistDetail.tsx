@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Play, Loader2, Trash2, ListPlus, Heart, Edit2, Check, X } from "lucide-react";
-import { Song, Playlist, removeSongFromPlaylist, toggleFavorite, isFavorite, removeSongFromPlaylistForUser, renamePlaylistForUser } from "@/lib/api";
+import { Song, Playlist, removeSongFromPlaylist, toggleFavoriteForUser, isFavorite, removeSongFromPlaylistForUser, renamePlaylistForUser } from "@/lib/api";
 import SongRow from "./SongRow";
 import AddToPlaylistModal from "./AddToPlaylistModal";
 
@@ -86,18 +86,18 @@ export default function PlaylistDetail({
     }
   }, [playlist, onPlay]);
 
-  const handleAddAllToFavorites = useCallback(() => {
+  const handleAddAllToFavorites = useCallback(async () => {
     if (playlist?.songs) {
       const newFavs = new Set(favorites);
-      playlist.songs.forEach(song => {
+      for (const song of playlist.songs) {
         if (!isFavorite(song.id)) {
-          toggleFavorite(song);
+          await toggleFavoriteForUser(song, userId);
           newFavs.add(song.id);
         }
-      });
+      }
       setFavorites(newFavs);
     }
-  }, [playlist, favorites]);
+  }, [playlist, favorites, userId]);
 
   const handleAddAllToPlaylist = useCallback(() => {
     if (playlist?.songs && playlist.songs.length > 0) {
@@ -221,6 +221,7 @@ export default function PlaylistDetail({
                   onPlay={() => onPlay(playlist.songs, song, i)}
                   onRemoveFromPlaylist={handleRemoveSong}
                   onAddToQueue={onAddToQueue}
+                  userId={userId}
                 />
               </div>
             </div>

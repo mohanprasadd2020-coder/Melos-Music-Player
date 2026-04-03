@@ -16,9 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Song, Album, Playlist, searchSongs, searchAlbums, getTrendingSongs, getTrendingAlbums,
   getRecentlyPlayed, getFavorites, getPlaylists, searchPlaylists,
-  createPlaylist, deletePlaylist, isFavorite, toggleFavorite,
   getPlaylistsForUser, createPlaylistForUser, deletePlaylistForUser, addSongToPlaylistForUser, migratePlaylistsToDatabase,
-  getFavoritesForUser, getRecentlyPlayedForUser
+  getFavoritesForUser, toggleFavoriteForUser, getRecentlyPlayedForUser
 } from "@/lib/api";
 import { Loader2, Plus, ListPlus, Upload, User, LogOut, Search as SearchIcon } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
@@ -48,6 +47,8 @@ export default function Index() {
   const [ytLoading, setYtLoading] = useState(false);
   const [rightPanelSong, setRightPanelSong] = useState<Song | null>(null);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  const [userFavorites, setUserFavorites] = useState<Song[]>([]);
+  const [userRecentlyPlayed, setUserRecentlyPlayed] = useState<Song[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const player = useAudioPlayer();
   const auth = useAuth();
@@ -129,13 +130,19 @@ export default function Index() {
     const loadUserData = async () => {
       setLoadingPlaylists(true);
       try {
-        const [playlists] = await Promise.all([
+        const [playlists, favorites, recentlyPlayed] = await Promise.all([
           getPlaylistsForUser(auth.user?.id),
           getFavoritesForUser(auth.user?.id),
           getRecentlyPlayedForUser(auth.user?.id)
         ]);
         setUserPlaylists(playlists);
-        console.log("[Index] Loaded user playlists:", playlists.length);
+        setUserFavorites(favorites);
+        setUserRecentlyPlayed(recentlyPlayed);
+        console.log("[Index] Loaded user data:", { 
+          playlists: playlists.length, 
+          favorites: favorites.length, 
+          recent: recentlyPlayed.length 
+        });
       } catch (err) {
         console.error("[Index] Error loading user data:", err);
       } finally {
@@ -463,33 +470,31 @@ export default function Index() {
       }
 
       case "favorites": {
-        const favs = getFavorites();
         return (
           <SongGrid
             title="Liked Songs"
-            songs={favs}
+            songs={userFavorites}
             emptyMessage="No liked songs yet. Click the heart icon on a song to save it."
-            onPlay={(song, i) => handlePlay(favs, song, i)}
+            onPlay={(song, i) => handlePlay(userFavorites, song, i)}
             {...contextMenuProps}
           />
         );
       }
 
       case "recent": {
-        const recent = getRecentlyPlayed();
         return (
           <SongGrid
             title="Recently Played"
-            songs={recent}
+            songs={userRecentlyPlayed}
             emptyMessage="No recently played songs."
-            onPlay={(song, i) => handlePlay(recent, song, i)}
+            onPlay={(song, i) => handlePlay(userRecentlyPlayed, song, i)}
             {...contextMenuProps}
           />
         );
       }
 
       case "library": {
-        const lib = [...getFavorites(), ...getRecentlyPlayed()];
+        const lib = [...userFavorites, ...userRecentlyPlayed];
         const unique = lib.filter((s, i, a) => a.findIndex(x => x.id === s.id) === i);
         return (
           <SongGrid
@@ -583,11 +588,11 @@ export default function Index() {
               />
             )}
 
-            {getRecentlyPlayed().length > 0 && (
+            {userRecentlyPlayed.length > 0 && (
               <SongGrid
                 title="Recently Played"
-                songs={getRecentlyPlayed().slice(0, 6)}
-                onPlay={(song, i) => handlePlay(getRecentlyPlayed(), song, i)}
+                songs={userRecentlyPlayed.slice(0, 6)}
+                onPlay={(song, i) => handlePlay(userRecentlyPlayed, song, i)}
                 {...contextMenuProps}
               />
             )}
@@ -732,10 +737,14 @@ export default function Index() {
 
       <RightPanel
         song={rightPanelSong || player.currentSong}
-        isFavorite={rightPanelSong ? isFavorite(rightPanelSong.id) : (player.currentSong ? isFavorite(player.currentSong.id) : false)}
+        isFavorite={rightPanelSong ? userFavorites.some(s => s.id === rightPanelSong.id) : (player.currentSong ? userFavorites.some(s => s.id === player.currentSong.id) : false)}
         onAddToPlaylist={(song) => setAddSongToPlaylist(song)}
-        onToggleFavorite={(song) => {
-          toggleFavorite(song);
+        onToggleFavorite={async (song) => {
+          const isFav = await toggleFavoriteForUser(song, auth.user?.id);
+          const favs = await getFavoritesForUser(auth.user?.id);
+          setUserFavorites(favs);
+          if (isFav) toast.success("Added to favorites");
+          else toast.success("Removed from favorites");
           setRightPanelSong(rightPanelSong ? { ...rightPanelSong } : null);
         }}
         onAddToQueue={(song) => {

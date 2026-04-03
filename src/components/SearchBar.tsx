@@ -1,5 +1,7 @@
 import { Search, X, Clock, Trash2 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
+import { getRecentSearchesForUser, saveRecentSearchForUser, clearRecentSearchesForUser } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SearchBarProps {
   value: string;
@@ -14,27 +16,26 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(RECENT_SEARCHES_KEY);
-    if (saved) {
-      try {
-        setRecentSearches(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse recent searches", e);
-      }
-    }
-  }, []);
+  const { user } = useAuth();
 
-  const saveRecentSearch = (term: string) => {
+  useEffect(() => {
+    const loadSearches = async () => {
+      const searches = await getRecentSearchesForUser(user?.id);
+      setRecentSearches(searches);
+    };
+    loadSearches();
+  }, [user]);
+
+  const saveRecentSearch = async (term: string) => {
     if (!term.trim()) return;
-    const updated = [term, ...recentSearches.filter(t => t !== term)].slice(0, 5);
+    await saveRecentSearchForUser(term, user?.id);
+    const updated = await getRecentSearchesForUser(user?.id);
     setRecentSearches(updated);
-    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
   };
 
-  const clearRecentSearches = () => {
+  const clearRecentSearches = async () => {
+    await clearRecentSearchesForUser(user?.id);
     setRecentSearches([]);
-    localStorage.removeItem(RECENT_SEARCHES_KEY);
   };
 
   useEffect(() => {

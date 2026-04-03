@@ -356,6 +356,87 @@ export async function addToRecentlyPlayedForUser(song: Song, userId: string | un
   }
 }
 
+// ─── Database-Backed Recent Searches ───
+
+export async function getRecentSearchesForUser(userId: string | undefined): Promise<string[]> {
+  if (!userId) {
+    const saved = localStorage.getItem("melos_recent_searches");
+    return saved ? JSON.parse(saved) : [];
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from("recent_searches")
+      .select("query")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+      
+    if (error || !data) return [];
+    
+    const searches = data.map(d => d.query);
+    localStorage.setItem("melos_recent_searches", JSON.stringify(searches));
+    return searches;
+  } catch (err) {
+    return [];
+  }
+}
+
+export async function saveRecentSearchForUser(query: string, userId: string | undefined) {
+  if (!query.trim()) return;
+  
+  // Local update
+  const saved = localStorage.getItem("melos_recent_searches");
+  const recent = saved ? JSON.parse(saved) : [];
+  const updated = [query, ...recent.filter((t: string) => t !== query)].slice(0, 10);
+  localStorage.setItem("melos_recent_searches", JSON.stringify(updated));
+
+  if (!userId) return;
+
+  try {
+    // Delete existing to update timestamp
+    await supabase.from("recent_searches")
+      .delete()
+      .eq("user_id", userId)
+      .eq("query", query);
+      
+    await supabase.from("recent_searches").insert({
+      user_id: userId,
+      query: query,
+    });
+    
+    // Keep only last 10
+    const { data } = await supabase.from("recent_searches")
+      .select("id")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .range(10, 50);
+      
+    if (data && data.length > 0) {
+      await supabase.from("recent_searches")
+        .delete()
+        .in("id", data.map(d => d.id));
+    }
+  } catch (err) {
+    console.error("[Recent Search] DB sync error", err);
+  }
+}
+
+export async function clearRecentSearchesForUser(userId: string | undefined) {
+  localStorage.removeItem("melos_recent_searches");
+  
+  if (!userId) return;
+
+  try {
+    await supabase.from("recent_searches")
+      .delete()
+      .eq("user_id", userId);
+  } catch (err) {
+    console.error("[Recent Search] DB clear error", err);
+  }
+}
+
+
 // ─── Database-Backed Playlists (User-Specific) ───
 
 import { supabase } from "@/integrations/supabase/client";
@@ -443,7 +524,7 @@ export async function createPlaylistForUser(name: string, userId: string | undef
         name: playlist.name,
         description: playlist.description,
         image: playlist.image,
-        songs: playlist.songs,
+        songs: playlist.songs as any,
       });
 
     if (error) {
@@ -567,7 +648,7 @@ export async function addSongToPlaylistForUser(playlistId: string, song: Song, u
     const { error } = await supabase
       .from("playlists")
       .update({
-        songs: updatedSongs,
+        songs: updatedSongs as any,
         image: playlist.image,
         updated_at: new Date().toISOString(),
       })
@@ -610,7 +691,7 @@ export async function removeSongFromPlaylistForUser(playlistId: string, songId: 
     const { error } = await supabase
       .from("playlists")
       .update({
-        songs: playlist.songs,
+        songs: playlist.songs as any,
         updated_at: new Date().toISOString(),
       })
       .eq("playlist_id", playlistId)
@@ -678,7 +759,7 @@ export async function migratePlaylistsToDatabase(userId: string): Promise<void> 
           name: p.name,
           description: p.description,
           image: p.image,
-          songs: p.songs,
+          songs: p.songs as any,
         }))
       );
 

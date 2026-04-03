@@ -1,7 +1,8 @@
 import { Play, Heart } from "lucide-react";
-import { Song, isFavorite, toggleFavorite } from "@/lib/api";
+import { Song, isFavorite, toggleFavoriteForUser } from "@/lib/api";
 import { useState } from "react";
 import SongContextMenu from "./SongContextMenu";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SongRowProps {
   song: Song;
@@ -11,6 +12,7 @@ interface SongRowProps {
   onAddToPlaylist?: (song: Song) => void;
   onAddToQueue?: (song: Song) => void;
   onRemoveFromPlaylist?: (songId: string) => void;
+  userId?: string;
 }
 
 function formatTime(s: number) {
@@ -19,8 +21,15 @@ function formatTime(s: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-export default function SongRow({ song, index, isActive, onPlay, onAddToPlaylist, onAddToQueue, onRemoveFromPlaylist }: SongRowProps) {
+export default function SongRow({ song, index, isActive, onPlay, onAddToPlaylist, onAddToQueue, onRemoveFromPlaylist, userId }: SongRowProps) {
   const [fav, setFav] = useState(isFavorite(song.id));
+
+  const handleToggleFav = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFav(!fav);
+    const result = await toggleFavoriteForUser(song, userId);
+    setFav(result);
+  };
 
   return (
     <div
@@ -44,7 +53,7 @@ export default function SongRow({ song, index, isActive, onPlay, onAddToPlaylist
       </div>
       <span className="text-xs text-muted-foreground hidden sm:block truncate max-w-[120px]">{song.album}</span>
       <button
-        onClick={(e) => { e.stopPropagation(); setFav(toggleFavorite(song)); }}
+        onClick={handleToggleFav}
         className={`shrink-0 mx-1 transition-colors ${fav ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100"}`}
         title={fav ? "Unfavorite" : "Favorite"}
       >
