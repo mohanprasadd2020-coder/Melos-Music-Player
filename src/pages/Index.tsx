@@ -130,19 +130,28 @@ export default function Index() {
     const loadUserData = async () => {
       setLoadingPlaylists(true);
       try {
-        const [playlists, favorites, recentlyPlayed] = await Promise.all([
-          getPlaylistsForUser(auth.user?.id),
-          getFavoritesForUser(auth.user?.id),
-          getRecentlyPlayedForUser(auth.user?.id)
-        ]);
-        setUserPlaylists(playlists);
-        setUserFavorites(favorites);
-        setUserRecentlyPlayed(recentlyPlayed);
-        console.log("[Index] Loaded user data:", { 
-          playlists: playlists.length, 
-          favorites: favorites.length, 
-          recent: recentlyPlayed.length 
-        });
+        if (!auth.user) {
+          // Clear data when user signs out
+          setUserPlaylists([]);
+          setUserFavorites([]);
+          setUserRecentlyPlayed([]);
+          console.log("[Index] Cleared user data on sign out");
+        } else {
+          // Load data when user signs in
+          const [playlists, favorites, recentlyPlayed] = await Promise.all([
+            getPlaylistsForUser(auth.user.id),
+            getFavoritesForUser(auth.user.id),
+            getRecentlyPlayedForUser(auth.user.id)
+          ]);
+          setUserPlaylists(playlists);
+          setUserFavorites(favorites);
+          setUserRecentlyPlayed(recentlyPlayed);
+          console.log("[Index] Loaded user data:", { 
+            playlists: playlists.length, 
+            favorites: favorites.length, 
+            recent: recentlyPlayed.length 
+          });
+        }
       } catch (err) {
         console.error("[Index] Error loading user data:", err);
       } finally {
