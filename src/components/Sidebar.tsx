@@ -48,13 +48,12 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
 
   return (
     <aside className="hidden md:flex flex-col w-60 bg-sidebar shrink-0 h-full">
-      <div className="p-6 pb-2">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-          <span className="inline-block w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground text-sm font-black">♪</span>
-          </span>
-          Melos
-        </h1>
+      <div className="p-6 pb-2 flex items-center justify-center">
+        <img 
+          src="https://i.postimg.cc/c4tt7ffM/Gemini-Generated-Image-kx8qvmkx8qvmkx8q.png" 
+          alt="Melos Music Player" 
+          className="h-20 w-auto object-contain"
+        />
       </div>
 
       <nav className="px-3 py-4 space-y-1">{renderNav(navItems)}</nav>
