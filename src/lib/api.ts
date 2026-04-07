@@ -39,9 +39,22 @@ function parseSong(item: any): Song {
     : "";
 
   const downloadUrls = item.downloadUrl || [];
-  const audioUrl = downloadUrls.length > 0
-    ? (downloadUrls.find((d: any) => d.quality === "320kbps") || downloadUrls[downloadUrls.length - 1])?.link || ""
-    : "";
+  // Priority order for audio quality: 320kbps > 192kbps > 160kbps > 96kbps
+  let audioUrl = "";
+  if (downloadUrls.length > 0) {
+    const qualityPriority = ["320kbps", "192kbps", "160kbps", "96kbps"];
+    for (const quality of qualityPriority) {
+      const urlObj = downloadUrls.find((d: any) => d.quality === quality);
+      if (urlObj?.link) {
+        audioUrl = urlObj.link;
+        break;
+      }
+    }
+    // Fallback to first available URL if no priority match
+    if (!audioUrl && downloadUrls[0]?.link) {
+      audioUrl = downloadUrls[0].link;
+    }
+  }
 
   const artists = item.artists?.primary?.map((a: any) => a.name).join(", ")
     || item.primaryArtists

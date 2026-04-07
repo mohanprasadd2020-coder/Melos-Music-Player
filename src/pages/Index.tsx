@@ -774,6 +774,7 @@ export default function Index() {
         repeat={player.repeat}
         queue={player.queue}
         queueIndex={player.queueIndex}
+        audioRef={player.audioRef}
         onTogglePlay={player.togglePlay}
         onNext={player.handleNext}
         onPrev={player.handlePrev}

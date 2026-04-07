@@ -1,12 +1,13 @@
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Volume1,
-  Shuffle, Repeat, Repeat1, ListMusic,
+  Shuffle, Repeat, Repeat1, ListMusic, Sliders,
 } from "lucide-react";
 import { Song } from "@/lib/api";
 import { RepeatMode } from "@/hooks/useAudioPlayer";
 import { useState } from "react";
 import QueuePanel from "./QueuePanel";
 import FullScreenPlayer from "./FullScreenPlayer";
+import Equalizer from "./Equalizer";
 import { Slider } from "./ui/slider";
 
 interface PlayerProps {
@@ -19,6 +20,7 @@ interface PlayerProps {
   repeat: RepeatMode;
   queue: Song[];
   queueIndex: number;
+  audioRef: React.RefObject<HTMLAudioElement>;
   onTogglePlay: () => void;
   onNext: () => void;
   onPrev: () => void;
@@ -40,12 +42,13 @@ function fmt(s: number) {
 
 export default function MusicPlayer({
   song, isPlaying, currentTime, duration, volume,
-  shuffle, repeat, queue, queueIndex,
+  shuffle, repeat, queue, queueIndex, audioRef,
   onTogglePlay, onNext, onPrev, onSeek, onVolumeChange,
   onToggleShuffle, onToggleRepeat, onPlayFromQueue, onReorderQueue, onRemoveFromQueue,
 }: PlayerProps) {
   const [showQueue, setShowQueue] = useState(false);
   const [showFullScreen, setShowFullScreen] = useState(false);
+  const [showEqualizer, setShowEqualizer] = useState(false);
 
   if (!song) {
     return (
@@ -97,6 +100,9 @@ export default function MusicPlayer({
         onReorderQueue={onReorderQueue}
         onRemoveFromQueue={onRemoveFromQueue}
       />
+
+      {/* Equalizer panel */}
+      {showEqualizer && <Equalizer audioRef={audioRef} />}
 
       {/* Mini player bar */}
       <footer className="fixed bottom-0 left-0 right-0 h-[72px] bg-player-bg border-t border-border z-50 flex items-center px-3 sm:px-4 gap-2 sm:gap-4 shadow-xl-deep">
@@ -167,6 +173,14 @@ export default function MusicPlayer({
 
         {/* Right controls — all screens */}
         <div className="flex items-center gap-1 sm:gap-2 w-auto sm:w-[160px] shrink-0 sm:justify-end">
+          <button
+            onClick={() => setShowEqualizer(!showEqualizer)}
+            className={`transition-colors duration-200 rounded-md p-1 hover:bg-secondary ${showEqualizer ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            title="Equalizer"
+          >
+            <Sliders size={16} className="sm:hidden" />
+            <Sliders size={18} className="hidden sm:block" />
+          </button>
           <button
             onClick={() => setShowQueue(!showQueue)}
             className={`transition-colors duration-200 rounded-md p-1 hover:bg-secondary ${showQueue ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}

@@ -32,6 +32,8 @@ export function useAudioPlayer() {
   useEffect(() => {
     const audio = new Audio();
     audio.volume = volume;
+    audio.crossOrigin = "anonymous";
+    audio.preload = "metadata";
     audioRef.current = audio;
 
     audio.addEventListener("timeupdate", () => setCurrentTime(audio.currentTime));
@@ -286,5 +288,6 @@ export function useAudioPlayer() {
     enqueue,
     reorderQueue,
     removeFromQueue,
+    audioRef,
   };
 }
