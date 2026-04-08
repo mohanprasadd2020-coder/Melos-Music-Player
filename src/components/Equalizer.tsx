@@ -1,10 +1,18 @@
-import { Sliders, ChevronDown } from "lucide-react";
+import { Sliders, ChevronDown, Speaker, Disc3 } from "lucide-react";
 import { useState } from "react";
-import { EQPreset, useAudioEffects } from "@/hooks/useAudioEffects";
+import { EQPreset, EQBand } from "@/hooks/useAudioEffects";
 import { Slider } from "./ui/slider";
 
 interface EqualizerProps {
-  audioRef: React.RefObject<HTMLAudioElement>;
+  preset: EQPreset;
+  bands: EQBand[];
+  applyPreset: (presetName: EQPreset) => void;
+  updateBand: (bandIndex: number, gain: number) => void;
+  resetEQ: () => void;
+  is3DEnabled: boolean;
+  isBassBoostEnabled: boolean;
+  toggle3D: () => void;
+  toggleBassBoost: () => void;
 }
 
 const PRESETS: { name: EQPreset; label: string }[] = [
@@ -21,30 +29,61 @@ const PRESETS: { name: EQPreset; label: string }[] = [
 
 const BAND_LABELS = ["Bass (60Hz)", "Low (250Hz)", "Mid (1kHz)", "High (4kHz)", "Treble (16kHz)"];
 
-export default function Equalizer({ audioRef }: EqualizerProps) {
-  const { preset, bands, applyPreset, updateBand, resetEQ } = useAudioEffects(audioRef);
+export default function Equalizer({ 
+  preset, 
+  bands, 
+  applyPreset, 
+  updateBand, 
+  resetEQ,
+  is3DEnabled,
+  isBassBoostEnabled,
+  toggle3D,
+  toggleBassBoost
+}: EqualizerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const currentPresetLabel = PRESETS.find(p => p.name === preset)?.label || "Custom";
 
   return (
-    <div className="fixed bottom-[80px] right-4 z-40 bg-card border border-border rounded-lg shadow-lg p-4 w-80 max-h-80 overflow-y-auto">
+    <div className="fixed bottom-[80px] right-4 z-40 bg-card border border-border rounded-lg shadow-lg p-4 w-80 max-h-96 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <Sliders size={18} className="text-primary" />
-        <h3 className="font-semibold text-foreground">Equalizer</h3>
+        <h3 className="font-semibold text-foreground">Audio Effects</h3>
         <button
           onClick={resetEQ}
           className="ml-auto text-xs px-2 py-1 bg-secondary hover:bg-secondary/80 text-foreground rounded transition-colors"
         >
-          Reset
+          Reset All
+        </button>
+      </div>
+
+      {/* Special Effects Section */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={toggle3D}
+          className={`flex-1 flex flex-col items-center justify-center p-2 rounded border transition-colors ${
+            is3DEnabled ? "bg-primary/20 border-primary text-primary" : "bg-card border-border hover:bg-secondary text-muted-foreground"
+          }`}
+        >
+          <Disc3 size={20} className="mb-1" />
+          <span className="text-xs font-semibold">3D Audio</span>
+        </button>
+        <button
+          onClick={toggleBassBoost}
+          className={`flex-1 flex flex-col items-center justify-center p-2 rounded border transition-colors ${
+            isBassBoostEnabled ? "bg-primary/20 border-primary text-primary" : "bg-card border-border hover:bg-secondary text-muted-foreground"
+          }`}
+        >
+          <Speaker size={20} className="mb-1" />
+          <span className="text-xs font-semibold">Mega Bass</span>
         </button>
       </div>
 
       {/* Preset Selector */}
       <div className="mb-4">
-        <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase">Preset</label>
+        <label className="text-xs font-medium text-muted-foreground mb-2 block uppercase">EQ Preset</label>
         <div className="relative">
           <button
             onClick={() => setIsOpen(!isOpen)}

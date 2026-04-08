@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { Song } from "@/lib/api";
 import { RepeatMode } from "@/hooks/useAudioPlayer";
+import { useAudioEffects } from "@/hooks/useAudioEffects";
 import { useState } from "react";
 import QueuePanel from "./QueuePanel";
 import FullScreenPlayer from "./FullScreenPlayer";
@@ -49,6 +50,9 @@ export default function MusicPlayer({
   const [showQueue, setShowQueue] = useState(false);
   const [showFullScreen, setShowFullScreen] = useState(false);
   const [showEqualizer, setShowEqualizer] = useState(false);
+
+  // Initialize audio effects at player level so they persist
+  const audioEffects = useAudioEffects(audioRef);
 
   if (!song) {
     return (
@@ -102,7 +106,7 @@ export default function MusicPlayer({
       />
 
       {/* Equalizer panel */}
-      {showEqualizer && <Equalizer audioRef={audioRef} />}
+      {showEqualizer && <Equalizer {...audioEffects} />}
 
       {/* Mini player bar */}
       <footer className="fixed bottom-0 left-0 right-0 h-[72px] bg-player-bg border-t border-border z-50 flex items-center px-3 sm:px-4 gap-2 sm:gap-4 shadow-xl-deep">
