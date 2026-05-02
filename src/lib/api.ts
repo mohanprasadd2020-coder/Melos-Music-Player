@@ -504,6 +504,9 @@ export async function getPlaylistsForUser(userId: string | undefined): Promise<P
       createdAt: new Date(row.created_at).getTime(),
     }));
 
+    // Keep local cache aligned with cloud data for authenticated sessions
+    savePlaylists(playlists);
+
     console.log("[Playlists] Successfully fetched user playlists:", playlists.length);
     return playlists;
   } catch (err) {
@@ -633,61 +636,94 @@ export async function renamePlaylistForUser(playlistId: string, newName: string,
  * Returns: false if song already exists, true if successfully added
  */
 export async function addSongToPlaylistForUser(playlistId: string, song: Song, userId: string | undefined): Promise<boolean> {
-  // Update localStorage
-  const playlists = getPlaylists();
-  const playlist = playlists.find(p => p.id === playlistId);
-  if (!playlist) {
-    console.warn("[Playlists] Playlist not found:", playlistId);
-    return false;
-  }
-  
-  // Check if song already exists
-  const songExists = playlist.songs.some(s => s.id === song.id);
-  if (songExists) {
-    console.log("[Playlists] Song already in playlist:", playlistId, song.id);
-    return false;
-  }
-  
-  // Add song to playlist
-  const updatedSongs = [...playlist.songs, song];
-  playlist.songs = updatedSongs;
-  
-  // Update playlist image if needed
-  if (!playlist.image && song.image) {
-    playlist.image = song.image;
-  }
-  
-  savePlaylists(playlists);
-  console.log("[Playlists] Song added to localStorage playlist:", playlistId, song.id);
-
-  // Update database if user is authenticated
+  // Guest user: localStorage-only flow
   if (!userId) {
-    console.log("[Playlists] No user ID, song added to localStorage only");
+    const playlists = getPlaylists();
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (!playlist) {
+      console.warn("[Playlists] Playlist not found:", playlistId);
+      return false;
+    }
+
+    const songExists = playlist.songs.some(s => s.id === song.id);
+    if (songExists) {
+      console.log("[Playlists] Song already in playlist:", playlistId, song.id);
+      return false;
+    }
+
+    playlist.songs = [...playlist.songs, song];
+    if (!playlist.image && song.image) {
+      playlist.image = song.image;
+    }
+
+    savePlaylists(playlists);
+    console.log("[Playlists] Song added to localStorage playlist:", playlistId, song.id);
     return true;
   }
 
+  // Authenticated user: use DB as source of truth to avoid stale local duplicate checks
   try {
-    console.log("[Playlists] Updating playlist in database:", playlistId, "with", updatedSongs.length, "songs");
-    const { error } = await supabase
+    const { data: row, error: fetchError } = await supabase
+      .from("playlists")
+      .select("playlist_id, name, description, image, songs, created_at")
+      .eq("playlist_id", playlistId)
+      .eq("user_id", userId)
+      .single();
+
+    if (fetchError || !row) {
+      console.error("[Playlists] Failed to fetch playlist from database:", fetchError);
+      return false;
+    }
+
+    const currentSongs = Array.isArray(row.songs) ? (row.songs as unknown as Song[]) : [];
+    const songExists = currentSongs.some(s => s.id === song.id);
+    if (songExists) {
+      console.log("[Playlists] Song already in playlist (DB):", playlistId, song.id);
+      return false;
+    }
+
+    const updatedSongs = [...currentSongs, song];
+    const nextImage = row.image || song.image || "";
+
+    const { error: updateError } = await supabase
       .from("playlists")
       .update({
         songs: updatedSongs as any,
-        image: playlist.image,
+        image: nextImage,
         updated_at: new Date().toISOString(),
       })
       .eq("playlist_id", playlistId)
       .eq("user_id", userId);
 
-    if (error) {
-      console.error("[Playlists] Failed to add song to database:", error);
-      return true; // Still return true since localStorage was updated
+    if (updateError) {
+      console.error("[Playlists] Failed to add song to database:", updateError);
+      return false;
     }
+
+    // Mirror latest playlist state into local cache
+    const cached = getPlaylists();
+    const idx = cached.findIndex(p => p.id === playlistId);
+    const normalizedPlaylist: Playlist = {
+      id: row.playlist_id,
+      name: row.name,
+      description: row.description || "",
+      image: nextImage,
+      songs: updatedSongs,
+      createdAt: new Date(row.created_at).getTime(),
+    };
+
+    if (idx >= 0) {
+      cached[idx] = normalizedPlaylist;
+    } else {
+      cached.unshift(normalizedPlaylist);
+    }
+    savePlaylists(cached);
 
     console.log("[Playlists] Song added to playlist in database successfully");
     return true;
   } catch (err) {
     console.error("[Playlists] Error adding song to database:", err);
-    return true; // Still return true since localStorage was updated
+    return false;
   }
 }
 

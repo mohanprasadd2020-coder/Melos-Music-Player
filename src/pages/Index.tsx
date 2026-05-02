@@ -11,6 +11,7 @@ import PlaylistCard from "@/components/PlaylistCard";
 import PlaylistDetail from "@/components/PlaylistDetail";
 import AddToPlaylistModal from "@/components/AddToPlaylistModal";
 import AuthModal from "@/components/AuthModal";
+import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -48,6 +49,7 @@ export default function Index() {
   const [userFavorites, setUserFavorites] = useState<Song[]>([]);
   const [userRecentlyPlayed, setUserRecentlyPlayed] = useState<Song[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const player = useAudioPlayer();
   const auth = useAuth();
 
@@ -136,6 +138,14 @@ export default function Index() {
   useEffect(() => {
     getTrendingSongs().then(setTrending);
     getTrendingAlbums().then(setTrendingAlbums);
+  }, []);
+
+  // Check for reset password mode from email link
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mode") === "reset-password") {
+      setShowResetPassword(true);
+    }
   }, []);
 
   // Live search
@@ -607,7 +617,19 @@ export default function Index() {
         <AuthModal
           onSignIn={auth.signIn}
           onSignUp={auth.signUp}
+          onForgotPassword={auth.resetPasswordForEmail}
           onClose={() => setShowAuth(false)}
+        />
+      )}
+
+      {showResetPassword && (
+        <ResetPasswordModal
+          onResetPassword={auth.updatePassword}
+          onClose={() => {
+            setShowResetPassword(false);
+            // Clean up the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }}
         />
       )}
 
