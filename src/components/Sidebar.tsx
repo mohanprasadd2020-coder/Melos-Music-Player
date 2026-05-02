@@ -1,6 +1,6 @@
-import { Home, Search, Library, Heart, Clock, Disc3, ListMusic, HardDrive, Youtube } from "lucide-react";
+import { Home, Search, Library, Heart, Clock, Disc3, ListMusic, HardDrive } from "lucide-react";
 
-type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local" | "youtube";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local";
 
 interface SidebarProps {
   currentView: View;
@@ -16,7 +16,6 @@ const navItems = [
 const browseItems = [
   { id: "albums" as View, label: "Albums", icon: Disc3 },
   { id: "playlists" as View, label: "Playlists", icon: ListMusic },
-  { id: "youtube" as View, label: "YouTube Music", icon: Youtube },
 ];
 
 const playlistItems = [

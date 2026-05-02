@@ -17,6 +17,30 @@ const PIPED_INSTANCES = [
 
 let currentInstance = 0;
 
+interface PipeSearchItem {
+  type?: string;
+  url?: string;
+  id?: string;
+  title?: string;
+  uploaderName?: string;
+  duration?: number;
+  thumbnail?: string;
+}
+
+interface PipeStream {
+  mimeType?: string;
+  url?: string;
+  bitrate?: number;
+  quality?: string;
+  qualityLabel?: string;
+}
+
+interface PipeStreamsResponse {
+  audioStreams?: PipeStream[];
+  videoStreams?: PipeStream[];
+  hls?: string;
+}
+
 function getApi(): string {
   return PIPED_INSTANCES[currentInstance % PIPED_INSTANCES.length];
 }
@@ -25,7 +49,21 @@ function rotateInstance() {
   currentInstance = (currentInstance + 1) % PIPED_INSTANCES.length;
 }
 
-async function fetchWithTimeout(url: string, ms = 8000): Promise<Response> {
+function scoreStream(stream: PipeStream): number {
+  const bitrate = Number(stream?.bitrate) || 0;
+  const quality = typeof stream?.quality === "string" ? Number.parseInt(stream.quality, 10) || 0 : 0;
+  const qualityLabel = typeof stream?.qualityLabel === "string"
+    ? Number.parseInt(stream.qualityLabel, 10) || 0
+    : 0;
+
+  const audioOnlyBonus = stream?.mimeType?.startsWith("audio/") ? 2_000_000 : 0;
+  const videoAudioBonus = stream?.mimeType?.includes("audio") ? 500_000 : 0;
+  const hqPenalty = /preview|low|tiny|144p|240p/i.test(`${stream?.quality || ""} ${stream?.qualityLabel || ""}`) ? -2_000_000 : 0;
+
+  return bitrate + quality + qualityLabel + audioOnlyBonus + videoAudioBonus + hqPenalty;
+}
+
+async function fetchWithTimeout(url: string, ms = 15000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
@@ -76,16 +114,16 @@ export async function ytSearch(query: string, limit = 50): Promise<YTSearchResul
         continue;
       }
       
-      const data = await res.json();
+      const data = (await res.json()) as { items?: PipeSearchItem[] };
       const items = (data.items || [])
-        .filter((item: any) => {
+        .filter((item: PipeSearchItem) => {
           // Filter for valid streams/videos
           return (item.type === "stream" || item.type === "video") && 
                  (item.url || item.id) &&
                  item.title;
         })
         .slice(0, limit)
-        .map((item: any) => {
+        .map((item: PipeSearchItem) => {
           let videoId = "";
           if (item.url) {
             // Extract video ID from URL
@@ -134,12 +172,20 @@ export async function ytGetAudioUrl(videoId: string): Promise<string | null> {
         rotateInstance();
         continue;
       }
-      const data = await res.json();
+      // Ensure we received JSON; some instances return HTML/service pages on error
+      const contentType = res.headers.get?.("content-type") || "";
+      if (!contentType.includes("application/json") && !contentType.includes("application/octet-stream") && !contentType.includes("application/")) {
+        console.warn(`[YT Fallback] ${api} responded with non-JSON content-type: ${contentType}`);
+        rotateInstance();
+        continue;
+      }
+
+      const data = (await res.json()) as PipeStreamsResponse;
 
       // Priority 1: Try audio-only streams (best quality, lowest bandwidth)
       const audioStreams = (data.audioStreams || [])
-        .filter((s: any) => s.mimeType && s.mimeType.startsWith("audio/") && s.url)
-        .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+        .filter((s: PipeStream) => s.mimeType && s.mimeType.startsWith("audio/") && s.url)
+        .sort((a: PipeStream, b: PipeStream) => scoreStream(b) - scoreStream(a));
 
       if (audioStreams.length > 0) {
         const url = audioStreams[0].url;
@@ -149,8 +195,8 @@ export async function ytGetAudioUrl(videoId: string): Promise<string | null> {
 
       // Priority 2: Try video streams with audio (if audio-only unavailable)
       const videoStreams = (data.videoStreams || [])
-        .filter((s: any) => s.mimeType && s.mimeType.includes("video") && s.url && s.mimeType.includes("audio"))
-        .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+        .filter((s: PipeStream) => s.mimeType && s.mimeType.includes("video") && s.url && s.mimeType.includes("audio"))
+        .sort((a: PipeStream, b: PipeStream) => scoreStream(b) - scoreStream(a));
 
       if (videoStreams.length > 0) {
         const url = videoStreams[0].url;
@@ -211,7 +257,7 @@ export async function ytFallbackSearch(songName: string, artist: string): Promis
         duration: nameOnlyResults[0].duration,
         image: nameOnlyResults[0].thumbnail,
         url: audioUrl,
-        source: "saavn",
+          source: "youtube",
       };
     }
 
@@ -229,7 +275,7 @@ export async function ytFallbackSearch(songName: string, artist: string): Promis
           duration: result.duration,
           image: result.thumbnail,
           url: audioUrl,
-          source: "saavn",
+          source: "youtube",
         };
       }
       console.warn(`[YT Fallback] ✗ No audio URL for "${result.title}", trying next...`);
@@ -265,7 +311,7 @@ export async function ytSearchSongs(query: string): Promise<Song[]> {
     duration: r.duration,
     image: r.thumbnail,
     url: "", // resolved on play via fallback
-    source: "saavn" as const,
+    source: "youtube" as const,
   }));
 }
 
@@ -282,6 +328,6 @@ export async function ytTrendingSongs(): Promise<Song[]> {
     duration: r.duration,
     image: r.thumbnail,
     url: "",
-    source: "saavn" as const,
+    source: "youtube" as const,
   }));
 }

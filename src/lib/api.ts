@@ -32,29 +32,39 @@ export interface Playlist {
 
 const BASE_URL = "https://jiosaavn-api-privatecvc2.vercel.app";
 
+function parseQualityScore(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return 0;
+
+  const normalized = value.toLowerCase();
+  const match = normalized.match(/(\d{2,4})\s*kbps|(?:bitrate[^\d]{0,8})?(\d{2,4})/i);
+  const parsed = match ? Number(match[1] || match[2]) : Number.parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isPreviewLink(link: string): boolean {
+  return /preview|sample|snippet/i.test(link);
+}
+
+export function pickBestAudioUrl(downloadUrls: any[]): string {
+  const best = (downloadUrls || [])
+    .filter((entry) => entry?.link && !isPreviewLink(String(entry.link)))
+    .map((entry) => ({
+      ...entry,
+      score: parseQualityScore(entry?.quality) || parseQualityScore(entry?.bitrate) || 0,
+    }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  return best?.link || "";
+}
+
 function parseSong(item: any): Song {
   const images = item.image || [];
   const image = images.length > 0
     ? (images.find((i: any) => i.quality === "500x500") || images[images.length - 1])?.link || ""
     : "";
 
-  const downloadUrls = item.downloadUrl || [];
-  // Priority order for audio quality: 320kbps > 192kbps > 160kbps > 96kbps
-  let audioUrl = "";
-  if (downloadUrls.length > 0) {
-    const qualityPriority = ["320kbps", "192kbps", "160kbps", "96kbps"];
-    for (const quality of qualityPriority) {
-      const urlObj = downloadUrls.find((d: any) => d.quality === quality);
-      if (urlObj?.link) {
-        audioUrl = urlObj.link;
-        break;
-      }
-    }
-    // Fallback to first available URL if no priority match
-    if (!audioUrl && downloadUrls[0]?.link) {
-      audioUrl = downloadUrls[0].link;
-    }
-  }
+  const audioUrl = pickBestAudioUrl(item.downloadUrl || []);
 
   const artists = item.artists?.primary?.map((a: any) => a.name).join(", ")
     || item.primaryArtists

@@ -22,9 +22,9 @@ import {
 import { Loader2, Plus, ListPlus, Upload, User, LogOut, Search as SearchIcon } from "lucide-react";
 import { processLocalFiles } from "@/lib/localFiles";
 import { toast } from "sonner";
-import { ytSearchSongs, ytTrendingSongs } from "@/lib/youtube";
+// YouTube view removed: yt helpers removed from imports
 
-type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local" | "youtube";
+type View = "home" | "search" | "library" | "favorites" | "recent" | "albums" | "playlists" | "album-detail" | "playlist-detail" | "local";
 
 export default function Index() {
   const [view, setView] = useState<View>("home");
@@ -42,9 +42,7 @@ export default function Index() {
   const [addSongToPlaylist, setAddSongToPlaylist] = useState<Song | null>(null);
   const [localSongs, setLocalSongs] = useState<Song[]>([]);
   const [showAuth, setShowAuth] = useState(false);
-  const [ytSongs, setYtSongs] = useState<Song[]>([]);
-  const [ytQuery, setYtQuery] = useState("");
-  const [ytLoading, setYtLoading] = useState(false);
+  // YouTube view/state removed
   const [rightPanelSong, setRightPanelSong] = useState<Song | null>(null);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
   const [userFavorites, setUserFavorites] = useState<Song[]>([]);
@@ -53,53 +51,12 @@ export default function Index() {
   const player = useAudioPlayer();
   const auth = useAuth();
 
-  // YouTube auto-search handler
-  const handleYtSearch = useCallback(async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
-      setYtSongs([]);
-      return;
-    }
-    setYtLoading(true);
-    try {
-      const songs = await ytSearchSongs(searchTerm);
-      setYtSongs(songs);
-      if (songs.length === 0) {
-        toast.info("No songs found on YouTube");
-      }
-    } catch (error) {
-      console.error("YouTube search error:", error);
-      toast.error("YouTube search failed. Try again.");
-      setYtSongs([]);
-    }
-    setYtLoading(false);
-  }, []);
+  // YouTube search removed
 
-  // Load trending on first YouTube visit
-  useEffect(() => {
-    if (view === "youtube" && ytSongs.length === 0 && !ytLoading && !ytQuery) {
-      setYtLoading(true);
-      ytTrendingSongs().then((songs) => {
-        setYtSongs(songs);
-        setYtLoading(false);
-      }).catch(() => {
-        setYtSongs([]);
-        setYtLoading(false);
-      });
-    }
-  }, [view]);
+  // YouTube trending removed
 
   // Auto-search as user types (with debounce)
-  useEffect(() => {
-    if (view !== "youtube") return;
-    if (!ytQuery.trim()) {
-      setYtSongs([]);
-      return;
-    }
-    const timer = setTimeout(() => {
-      handleYtSearch(ytQuery);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [ytQuery, handleYtSearch, view]);
+  // YouTube auto-search removed
 
   // Auto-play on local file selection
   const handleLocalFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -542,48 +499,7 @@ export default function Index() {
           </>
         );
 
-      case "youtube":
-        return (
-          <>
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-foreground mb-4">YouTube Music</h2>
-              <div className="flex gap-2 max-w-md">
-                <div className="flex-1 relative">
-                  <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    value={ytQuery}
-                    onChange={(e) => setYtQuery(e.target.value)}
-                    placeholder="Search YouTube Music..."
-                    className="w-full h-10 pl-9 pr-3 rounded-lg bg-secondary text-foreground text-sm placeholder:text-muted-foreground outline-none border border-transparent focus:border-primary/50 transition-colors"
-                  />
-                </div>
-                {ytQuery.trim() && (
-                  <button
-                    onClick={() => setYtQuery("")}
-                    className="h-10 px-3 text-muted-foreground hover:text-foreground transition-colors"
-                    title="Clear search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">Audio-only playback • Auto-search as you type</p>
-            </div>
-            {ytLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              </div>
-            ) : (
-              <SongGrid
-                title={ytQuery ? `Results for "${ytQuery}"` : "Trending on YouTube"}
-                songs={ytSongs}
-                emptyMessage={ytQuery ? "No songs found. Try another search." : "Start typing to search YouTube Music"}
-                onPlay={(song, i) => handlePlay(ytSongs, song, i)}
-                {...contextMenuProps}
-              />
-            )}
-          </>
-        );
+      
 
       default:
         return (

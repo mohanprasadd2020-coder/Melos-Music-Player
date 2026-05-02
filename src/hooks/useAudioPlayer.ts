@@ -31,7 +31,7 @@ export function useAudioPlayer() {
 
   useEffect(() => {
     const audio = new Audio();
-    audio.volume = volume;
+    audio.volume = 1;
     audio.crossOrigin = "anonymous";
     audio.preload = "metadata";
     audioRef.current = audio;
@@ -179,7 +179,7 @@ export function useAudioPlayer() {
 
   const changeVolume = useCallback((v: number) => {
     setVolume(v);
-    if (audioRef.current) audioRef.current.volume = v;
+    if (audioRef.current) audioRef.current.volume = 1;
   }, []);
 
   const toggleShuffle = useCallback(() => {

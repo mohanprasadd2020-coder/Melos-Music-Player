@@ -1,332 +1,239 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-export type EQPreset = "off" | "normal" | "pop" | "rock" | "classical" | "bass" | "treble" | "jazz" | "electronic" | "custom";
+export type AudioQualityMode = "normal" | "high";
 
-export interface EQBand {
-  freq: number;
-  gain: number;
-  Q: number;
+export interface AudioEnhancementState {
+  bass: number;
+  mid: number;
+  treble: number;
+  qualityMode: AudioQualityMode;
 }
 
-const EQ_PRESETS: Omit<Record<EQPreset, EQBand[]>, "custom"> = {
-  off: [
-    { freq: 60, gain: 0, Q: 0.4 },
-    { freq: 250, gain: 0, Q: 0.4 },
-    { freq: 1000, gain: 0, Q: 0.4 },
-    { freq: 4000, gain: 0, Q: 0.4 },
-    { freq: 16000, gain: 0, Q: 0.4 },
-  ],
-  normal: [
-    { freq: 60, gain: 0, Q: 0.4 },
-    { freq: 250, gain: 0, Q: 0.4 },
-    { freq: 1000, gain: 0, Q: 0.4 },
-    { freq: 4000, gain: 0, Q: 0.4 },
-    { freq: 16000, gain: 0, Q: 0.4 },
-  ],
-  pop: [
-    { freq: 60, gain: 2, Q: 0.4 },
-    { freq: 250, gain: 1, Q: 0.4 },
-    { freq: 1000, gain: -2, Q: 0.4 },
-    { freq: 4000, gain: 2, Q: 0.4 },
-    { freq: 16000, gain: 3, Q: 0.4 },
-  ],
-  rock: [
-    { freq: 60, gain: 4, Q: 0.4 },
-    { freq: 250, gain: 0.5, Q: 0.4 },
-    { freq: 1000, gain: -3, Q: 0.4 },
-    { freq: 4000, gain: 2, Q: 0.4 },
-    { freq: 16000, gain: 3.5, Q: 0.4 },
-  ],
-  classical: [
-    { freq: 60, gain: -2, Q: 0.4 },
-    { freq: 250, gain: 2, Q: 0.4 },
-    { freq: 1000, gain: 0, Q: 0.4 },
-    { freq: 4000, gain: 1, Q: 0.4 },
-    { freq: 16000, gain: 2, Q: 0.4 },
-  ],
-  bass: [
-    { freq: 60, gain: 8, Q: 0.4 },
-    { freq: 250, gain: 5, Q: 0.4 },
-    { freq: 1000, gain: 0, Q: 0.4 },
-    { freq: 4000, gain: -2, Q: 0.4 },
-    { freq: 16000, gain: 0, Q: 0.4 },
-  ],
-  treble: [
-    { freq: 60, gain: -3, Q: 0.4 },
-    { freq: 250, gain: -2, Q: 0.4 },
-    { freq: 1000, gain: 0, Q: 0.4 },
-    { freq: 4000, gain: 3, Q: 0.4 },
-    { freq: 16000, gain: 6, Q: 0.4 },
-  ],
-  jazz: [
-    { freq: 60, gain: 1, Q: 0.4 },
-    { freq: 250, gain: 2, Q: 0.4 },
-    { freq: 1000, gain: -1, Q: 0.4 },
-    { freq: 4000, gain: 0.5, Q: 0.4 },
-    { freq: 16000, gain: 2, Q: 0.4 },
-  ],
-  electronic: [
-    { freq: 60, gain: 3, Q: 0.4 },
-    { freq: 250, gain: -1, Q: 0.4 },
-    { freq: 1000, gain: -3, Q: 0.4 },
-    { freq: 4000, gain: 4, Q: 0.4 },
-    { freq: 16000, gain: 5, Q: 0.4 },
-  ],
+const SETTINGS_KEY = "melos-audio-enhancement-settings";
+
+const DEFAULT_SETTINGS: AudioEnhancementState = {
+  bass: 0,
+  mid: 0,
+  treble: 0,
+  qualityMode: "high",
 };
 
-interface AudioGraph {
-  audioContext: AudioContext;
-  filters: BiquadFilterNode[];
-  source: MediaElementAudioSourceNode;
-  gainNode: GainNode;
-  panner: PannerNode | null;
-  bassFilter: BiquadFilterNode;
+const MODE_BOOSTS: Record<AudioQualityMode, Pick<AudioEnhancementState, "bass" | "mid" | "treble">> = {
+  normal: { bass: 0, mid: 0, treble: 0 },
+  high: { bass: 4, mid: 0, treble: 2 },
+};
+
+const clampGain = (value: number) => Math.max(-12, Math.min(12, value));
+
+function readStoredSettings(): AudioEnhancementState {
+  if (typeof window === "undefined") return DEFAULT_SETTINGS;
+
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return DEFAULT_SETTINGS;
+    const parsed = JSON.parse(raw) as Partial<AudioEnhancementState>;
+    return {
+      bass: typeof parsed.bass === "number" ? parsed.bass : DEFAULT_SETTINGS.bass,
+      mid: typeof parsed.mid === "number" ? parsed.mid : DEFAULT_SETTINGS.mid,
+      treble: typeof parsed.treble === "number" ? parsed.treble : DEFAULT_SETTINGS.treble,
+      qualityMode: parsed.qualityMode === "normal" || parsed.qualityMode === "high"
+        ? parsed.qualityMode
+        : DEFAULT_SETTINGS.qualityMode,
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
 }
 
-const audioGraphCache = new WeakMap<HTMLMediaElement, AudioGraph>();
-
-export function useAudioEffects(audioRef: React.RefObject<HTMLAudioElement>) {
-  const [preset, setPreset] = useState<EQPreset>("off");
-  const [bands, setBands] = useState<EQBand[]>(EQ_PRESETS.off);
-  const [is3DEnabled, setIs3DEnabled] = useState(false);
-  const [isBassBoostEnabled, setIsBassBoostEnabled] = useState(false);
+export function useAudioEffects(audioRef: React.RefObject<HTMLAudioElement>, volume: number) {
+  const [settings, setSettings] = useState<AudioEnhancementState>(() => readStoredSettings());
 
   const audioContextRef = useRef<AudioContext | null>(null);
-  const filtersRef = useRef<BiquadFilterNode[]>([]);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  
-  // Extra effects refs
-  const pannerRef = useRef<PannerNode | null>(null);
   const bassFilterRef = useRef<BiquadFilterNode | null>(null);
-  const is3DEnabledRef = useRef(is3DEnabled);
-  const isBassBoostEnabledRef = useRef(isBassBoostEnabled);
+  const midFilterRef = useRef<BiquadFilterNode | null>(null);
+  const trebleFilterRef = useRef<BiquadFilterNode | null>(null);
+  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const initializedRef = useRef(false);
 
-  // Sync refs with state
-  useEffect(() => {
-    is3DEnabledRef.current = is3DEnabled;
-  }, [is3DEnabled]);
-  
-  useEffect(() => {
-    isBassBoostEnabledRef.current = isBassBoostEnabled;
-    if (bassFilterRef.current) {
-        // Apply bass boost frequency and gain dynamically
-        bassFilterRef.current.gain.value = isBassBoostEnabled ? 8 : 0;
+  const applyNodeState = useCallback((next: AudioEnhancementState, nextVolume = volume) => {
+    const modeBoost = MODE_BOOSTS[next.qualityMode];
+    const bassGain = clampGain(next.bass + modeBoost.bass);
+    const midGain = clampGain(next.mid + modeBoost.mid);
+    const trebleGain = clampGain(next.treble + modeBoost.treble);
+
+    if (bassFilterRef.current) bassFilterRef.current.gain.setTargetAtTime(bassGain, bassFilterRef.current.context.currentTime, 0.015);
+    if (midFilterRef.current) midFilterRef.current.gain.setTargetAtTime(midGain, midFilterRef.current.context.currentTime, 0.015);
+    if (trebleFilterRef.current) trebleFilterRef.current.gain.setTargetAtTime(trebleGain, trebleFilterRef.current.context.currentTime, 0.015);
+
+    if (compressorRef.current) {
+      compressorRef.current.threshold.value = next.qualityMode === "high" ? -24 : -18;
+      compressorRef.current.knee.value = next.qualityMode === "high" ? 24 : 20;
+      compressorRef.current.ratio.value = next.qualityMode === "high" ? 4.5 : 3;
+      compressorRef.current.attack.value = next.qualityMode === "high" ? 0.003 : 0.01;
+      compressorRef.current.release.value = next.qualityMode === "high" ? 0.25 : 0.35;
     }
-  }, [isBassBoostEnabled]);
 
-  // Initialize Web Audio API
+    if (masterGainRef.current) {
+      const safeVolume = Number.isFinite(nextVolume) ? Math.max(0, Math.min(1, nextVolume)) : 1;
+      masterGainRef.current.gain.setTargetAtTime(safeVolume, masterGainRef.current.context.currentTime, 0.015);
+    }
+  }, [volume]);
+
   useEffect(() => {
-    if (!audioRef.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    let mounted = true;
-    let animationFrameId: number;
+    let cancelled = false;
 
-    const initAudio = () => {
-      if (!mounted || audioContextRef.current) return; // Already initialized
+    const ensureContext = async () => {
+      if (cancelled) return;
+      if (audioContextRef.current && initializedRef.current) {
+        if (audioContextRef.current.state === "suspended") {
+          await audioContextRef.current.resume();
+        }
+        return;
+      }
 
       try {
-        const audioElement = audioRef.current!;
+        const context = new AudioContext({ latencyHint: "playback" });
+        const source = context.createMediaElementSource(audio);
+        const bassFilter = context.createBiquadFilter();
+        const midFilter = context.createBiquadFilter();
+        const trebleFilter = context.createBiquadFilter();
+        const compressor = context.createDynamicsCompressor();
+        const masterGain = context.createGain();
 
-        if (audioGraphCache.has(audioElement)) {
-          console.log("Using cached audio graph");
-          const cachedGraph = audioGraphCache.get(audioElement)!;
-          audioContextRef.current = cachedGraph.audioContext;
-          filtersRef.current = cachedGraph.filters;
-          sourceRef.current = cachedGraph.source;
-          gainNodeRef.current = cachedGraph.gainNode;
-          pannerRef.current = cachedGraph.panner;
-          bassFilterRef.current = cachedGraph.bassFilter;
-          
-          if (cachedGraph.audioContext.state === "suspended") {
-            cachedGraph.audioContext.resume();
-          }
-          
-          start3DAnimation();
-          return;
-        }
-        sourceRef.current = source;
-
-        // Create gain node for final output
-        const gainNode = audioContext.createGain();
-        gainNodeRef.current = gainNode;
-
-        // Extra Effects: Bass Boost Filter
-        const bassFilter = audioContext.createBiquadFilter();
         bassFilter.type = "lowshelf";
-        bassFilter.frequency.value = 80;
-        bassFilter.gain.value = isBassBoostEnabledRef.current ? 8 : 0;
+        bassFilter.frequency.value = 200;
+        bassFilter.Q.value = 0.7;
+
+        midFilter.type = "peaking";
+        midFilter.frequency.value = 1000;
+        midFilter.Q.value = 1.0;
+
+        trebleFilter.type = "highshelf";
+        trebleFilter.frequency.value = 6000;
+        trebleFilter.Q.value = 0.7;
+
+        compressor.threshold.value = -24;
+        compressor.knee.value = 24;
+        compressor.ratio.value = 4.5;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.25;
+
+        source.connect(bassFilter);
+        bassFilter.connect(midFilter);
+        midFilter.connect(trebleFilter);
+        trebleFilter.connect(compressor);
+        compressor.connect(masterGain);
+        masterGain.connect(context.destination);
+
+        audio.volume = 1;
+        audio.muted = false;
+
+        audioContextRef.current = context;
+        sourceRef.current = source;
         bassFilterRef.current = bassFilter;
+        midFilterRef.current = midFilter;
+        trebleFilterRef.current = trebleFilter;
+        compressorRef.current = compressor;
+        masterGainRef.current = masterGain;
+        initializedRef.current = true;
 
-        // Extra Effects: 3D Panner (Spatial Audio)
-        const panner = audioContext.createPanner ? audioContext.createPanner() : null;
-        if (panner) {
-          panner.panningModel = "HRTF";
-          panner.distanceModel = "inverse";
-          panner.refDistance = 1;
-          panner.maxDistance = 10000;
-          panner.rolloffFactor = 1;
-          
-          // Set the listener to the origin
-          const listener = audioContext.listener;
-          if (listener.positionX) {
-            listener.positionX.value = 0;
-            listener.positionY.value = 0;
-            listener.positionZ.value = 0;
-            listener.forwardX.value = 0;
-            listener.forwardY.value = 0;
-            listener.forwardZ.value = -1;
-            listener.upX.value = 0;
-            listener.upY.value = 1;
-            listener.upZ.value = 0;
-          } else {
-            // Fallback for older browsers
-            listener.setPosition(0, 0, 0);
-            listener.setOrientation(0, 0, -1, 0, 1, 0);
-          }
-          
-          pannerRef.current = panner;
+        if (context.state === "suspended") {
+          await context.resume();
         }
 
-        // Create equalizer filters
-        const newFilters: BiquadFilterNode[] = [];
-        let lastNode: AudioNode = source;
-
-        // Connect source -> bass boost -> panner -> EQ
-        lastNode.connect(bassFilter);
-        lastNode = bassFilter;
-
-        if (panner) {
-          lastNode.connect(panner);
-          lastNode = panner;
-        }
-
-        EQ_PRESETS.off.forEach((band, idx) => {
-          const filter = audioContext.createBiquadFilter();
-          filter.type = "peaking";
-          filter.frequency.value = band.freq;
-          filter.gain.value = band.gain; // Currently 0 since default is off
-          filter.Q.value = band.Q;
-
-          newFilters.push(filter);
-          lastNode.connect(filter);
-          lastNode = filter;
-        });
-
-        filtersRef.current = newFilters;
-
-        // Connect to gain and destination
-        lastNode.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        // Run true spatial 3D effect loop
-        let pannerTime = 0;
-        const animate3D = () => {
-           if (!mounted) return;
-           if (pannerRef.current) {
-             if (is3DEnabledRef.current) {
-               // Greatly increase radius and speed to make the 3D effect immediately obvious
-               const radius = 5; 
-               const x = Math.sin(pannerTime) * radius;
-               // Orbit mostly goes around your head on the Z axis
-               const z = -Math.cos(pannerTime) * radius; 
-               
-               // Noticeable vertical bounce
-               const y = Math.sin(pannerTime * 1.5) * 2;
-               
-               if (pannerRef.current.positionX) {
-                 pannerRef.current.positionX.value = x;
-                 pannerRef.current.positionY.value = y;
-                 pannerRef.current.positionZ.value = z;
-               } else {
-                 // Fallback for older browsers
-                 pannerRef.current.setPosition(x, y, z);
-               }
-               
-               pannerTime += 0.025; // Faster rotation to feel it quickly
-             } else {
-               // Reset directly to front center
-               if (pannerRef.current.positionX) {
-                 pannerRef.current.positionX.value = 0;
-                 pannerRef.current.positionY.value = 0;
-                 pannerRef.current.positionZ.value = -1; // Directly in front
-               } else {
-                 pannerRef.current.setPosition(0, 0, -1);
-               }
-             }
-           }
-           animationFrameId = requestAnimationFrame(animate3D);
-        };
-        animate3D();
-      } catch (err) {
-        console.error("Web Audio API initialization failed:", err);
+        applyNodeState(settings, volume);
+      } catch (error) {
+        console.error("Web Audio API initialization failed:", error);
       }
     };
 
-    // Initialize on first user interaction (required by browsers)
-    const startAudio = () => {
-      initAudio();
-      document.removeEventListener("click", startAudio);
-      document.removeEventListener("touchstart", startAudio);
+    const unlockAudio = () => {
+      void ensureContext();
+      document.removeEventListener("click", unlockAudio);
+      document.removeEventListener("touchstart", unlockAudio);
+      document.removeEventListener("keydown", unlockAudio);
     };
 
-    document.addEventListener("click", startAudio, { once: true });
-    document.addEventListener("touchstart", startAudio, { once: true });
+    const resumeOnPlay = () => {
+      if (audioContextRef.current?.state === "suspended") {
+        void audioContextRef.current.resume();
+      }
+    };
+
+    const forceMaxElementVolume = () => {
+      audio.volume = 1;
+      audio.muted = false;
+    };
+
+    audio.addEventListener("play", resumeOnPlay);
+    audio.addEventListener("playing", resumeOnPlay);
+    audio.addEventListener("volumechange", forceMaxElementVolume);
+
+    document.addEventListener("click", unlockAudio, { once: true });
+    document.addEventListener("touchstart", unlockAudio, { once: true });
+    document.addEventListener("keydown", unlockAudio, { once: true });
+
+    forceMaxElementVolume();
+    void ensureContext();
 
     return () => {
-      mounted = false;
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      document.removeEventListener("click", startAudio);
-      document.removeEventListener("touchstart", startAudio);
+      cancelled = true;
+      audio.removeEventListener("play", resumeOnPlay);
+      audio.removeEventListener("playing", resumeOnPlay);
+      audio.removeEventListener("volumechange", forceMaxElementVolume);
+      document.removeEventListener("click", unlockAudio);
+      document.removeEventListener("touchstart", unlockAudio);
+      document.removeEventListener("keydown", unlockAudio);
     };
-  }, [audioRef]); // Removed bands from dependencies to avoid continuous re-render errors!
+  }, [audioRef, applyNodeState, settings, volume]);
 
-  const applyPreset = useCallback((presetName: EQPreset) => {
-    if (presetName === "custom") return;
-    const presetBands = EQ_PRESETS[presetName as keyof typeof EQ_PRESETS];
-    setBands(presetBands);
-    setPreset(presetName);
-
-    // Apply to filters if audio context is ready
-    if (filtersRef.current.length > 0) {
-      filtersRef.current.forEach((filter, idx) => {
-        filter.gain.value = presetBands[idx].gain;
-      });
+  useEffect(() => {
+    applyNodeState(settings, volume);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     }
+  }, [applyNodeState, settings, volume]);
+
+  const setBass = useCallback((bass: number) => {
+    setSettings((prev) => ({ ...prev, bass }));
   }, []);
 
-  const updateBand = useCallback((bandIndex: number, gain: number) => {
-    setBands(prev => {
-        const newBands = [...prev];
-        newBands[bandIndex] = { ...newBands[bandIndex], gain };
-        return newBands;
-    });
-    setPreset("custom"); // Set "custom" correctly
-
-    // Update filter immediately
-    if (filtersRef.current[bandIndex]) {
-      filtersRef.current[bandIndex].gain.value = gain;
-    }
+  const setMid = useCallback((mid: number) => {
+    setSettings((prev) => ({ ...prev, mid }));
   }, []);
 
-  const toggle3D = useCallback(() => setIs3DEnabled(prev => !prev), []);
-  const toggleBassBoost = useCallback(() => setIsBassBoostEnabled(prev => !prev), []);
+  const setTreble = useCallback((treble: number) => {
+    setSettings((prev) => ({ ...prev, treble }));
+  }, []);
+
+  const setQualityMode = useCallback((qualityMode: AudioQualityMode) => {
+    setSettings((prev) => ({ ...prev, qualityMode }));
+  }, []);
 
   const resetEQ = useCallback(() => {
-    applyPreset("off");
-    setIs3DEnabled(false);
-    setIsBassBoostEnabled(false);
-  }, [applyPreset]);
+    setSettings((prev) => ({
+      ...prev,
+      bass: 0,
+      mid: 0,
+      treble: 0,
+      qualityMode: "high",
+    }));
+  }, []);
 
   return {
-    preset,
-    bands,
-    is3DEnabled,
-    isBassBoostEnabled,
-    applyPreset,
-    updateBand,
-    toggle3D,
-    toggleBassBoost,
+    bass: settings.bass,
+    mid: settings.mid,
+    treble: settings.treble,
+    qualityMode: settings.qualityMode,
+    setBass,
+    setMid,
+    setTreble,
+    setQualityMode,
     resetEQ,
   };
 }

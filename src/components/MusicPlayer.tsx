@@ -52,7 +52,7 @@ export default function MusicPlayer({
   const [showEqualizer, setShowEqualizer] = useState(false);
 
   // Initialize audio effects at player level so they persist
-  const audioEffects = useAudioEffects(audioRef);
+  const audioEffects = useAudioEffects(audioRef, volume);
 
   if (!song) {
     return (
@@ -119,7 +119,6 @@ export default function MusicPlayer({
             src={song.image || "/placeholder.svg"}
             alt=""
             className={`w-11 h-11 sm:w-12 sm:h-12 rounded-md object-cover shadow-md-elevated ${isPlaying ? "animate-spin-slow" : ""}`}
-            style={{ animationDuration: "8s" }}
           />
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground truncate">{song.name}</p>
@@ -170,9 +169,12 @@ export default function MusicPlayer({
             <span className="w-10 tabular-nums">{fmt(duration)}</span>
           </div>
           {/* Mobile progress bar (thin, no timestamps) */}
-          <div className="w-full sm:hidden h-0.5 bg-secondary/70 rounded-full overflow-hidden">
-            <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
-          </div>
+          <progress
+            value={progress}
+            max={100}
+            className="player-progress w-full sm:hidden"
+            aria-label="Playback progress"
+          />
         </div>
 
         {/* Right controls — all screens */}
