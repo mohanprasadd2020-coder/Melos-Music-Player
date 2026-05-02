@@ -636,8 +636,7 @@ export async function renamePlaylistForUser(playlistId: string, newName: string,
  * Returns: false if song already exists, true if successfully added
  */
 export async function addSongToPlaylistForUser(playlistId: string, song: Song, userId: string | undefined): Promise<boolean> {
-  // Guest user: localStorage-only flow
-  if (!userId) {
+  const addSongToLocalCache = (): boolean => {
     const playlists = getPlaylists();
     const playlist = playlists.find(p => p.id === playlistId);
     if (!playlist) {
@@ -659,6 +658,11 @@ export async function addSongToPlaylistForUser(playlistId: string, song: Song, u
     savePlaylists(playlists);
     console.log("[Playlists] Song added to localStorage playlist:", playlistId, song.id);
     return true;
+  };
+
+  // Guest user: localStorage-only flow
+  if (!userId) {
+    return addSongToLocalCache();
   }
 
   // Authenticated user: use DB as source of truth to avoid stale local duplicate checks
@@ -672,7 +676,8 @@ export async function addSongToPlaylistForUser(playlistId: string, song: Song, u
 
     if (fetchError || !row) {
       console.error("[Playlists] Failed to fetch playlist from database:", fetchError);
-      return false;
+      console.warn("[Playlists] Falling back to local cache add due DB fetch issue");
+      return addSongToLocalCache();
     }
 
     const currentSongs = Array.isArray(row.songs) ? (row.songs as unknown as Song[]) : [];
@@ -697,7 +702,8 @@ export async function addSongToPlaylistForUser(playlistId: string, song: Song, u
 
     if (updateError) {
       console.error("[Playlists] Failed to add song to database:", updateError);
-      return false;
+      console.warn("[Playlists] Falling back to local cache add due DB update issue");
+      return addSongToLocalCache();
     }
 
     // Mirror latest playlist state into local cache
@@ -723,7 +729,8 @@ export async function addSongToPlaylistForUser(playlistId: string, song: Song, u
     return true;
   } catch (err) {
     console.error("[Playlists] Error adding song to database:", err);
-    return false;
+    console.warn("[Playlists] Falling back to local cache add due unexpected DB error");
+    return addSongToLocalCache();
   }
 }
 
